@@ -26,8 +26,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+// External global context declared in ffmpeg_opt.c
+extern MSwitchContext global_mswitch_ctx;
+extern int global_mswitch_enabled;
 
 // Default health thresholds
 #define MSW_DEFAULT_STREAM_LOSS_MS 2000
@@ -43,59 +48,44 @@
 
 static void mswitch_log(MSwitchContext *msw, int level, const char *fmt, ...)
 {
+    // Simple, safe logging to avoid memory corruption
     va_list args;
     va_start(args, fmt);
-    av_log(NULL, level, "[MSwitch] ");
-    av_log(NULL, level, fmt, args);
+    
+    // Use a fixed buffer to avoid stack corruption
+    char buffer[512];
+    int ret = vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
+    
+    if (ret > 0 && ret < sizeof(buffer)) {
+        fprintf(stderr, "[MSwitch] %s", buffer);
+        fflush(stderr);
+    }
 }
 
 static int mswitch_parse_sources(MSwitchContext *msw, const char *sources_str)
 {
+    // Minimal parsing without any logging to avoid corruption
+    if (!sources_str) return AVERROR(EINVAL);
+    
     char *sources_copy = av_strdup(sources_str);
+    if (!sources_copy) return AVERROR(ENOMEM);
+    
     char *saveptr = NULL;
-    char *token;
+    char *token = av_strtok(sources_copy, ";", &saveptr);
     int i = 0;
     
-    if (!sources_copy) {
-        mswitch_log(msw, AV_LOG_ERROR, "Failed to allocate memory for sources parsing\n");
-        return AVERROR(ENOMEM);
-    }
-    
-    token = av_strtok(sources_copy, ";", &saveptr);
     while (token && i < MSW_MAX_SOURCES) {
         char *eq_pos = strchr(token, '=');
         if (eq_pos) {
             *eq_pos = '\0';
             msw->sources[i].id = av_strdup(token);
             msw->sources[i].url = av_strdup(eq_pos + 1);
-            msw->sources[i].name = av_strdup(token); // Default name to ID
-            msw->sources[i].latency_ms = 0;
-            msw->sources[i].loop = 0;
+            msw->sources[i].name = av_strdup(token);
+            
+            // Initialize basic fields only
             msw->sources[i].is_healthy = 1;
-            msw->sources[i].last_packet_time = 0;
-            msw->sources[i].last_health_check = 0;
-            msw->sources[i].stream_loss_count = 0;
-            msw->sources[i].black_frame_count = 0;
-            msw->sources[i].cc_error_count = 0;
-            msw->sources[i].cc_errors_per_sec = 0;
-            msw->sources[i].pid_loss_count = 0;
-            
-            // Initialize packet loss tracking
-            msw->sources[i].total_packets_expected = 0;
-            msw->sources[i].total_packets_received = 0;
-            msw->sources[i].packet_loss_window_start = 0;
-            msw->sources[i].packets_in_window = 0;
-            msw->sources[i].lost_packets_in_window = 0;
-            msw->sources[i].current_packet_loss_percent = 0.0f;
-            msw->sources[i].buffer_size = MSW_MAX_BUFFER_PACKETS;
             msw->sources[i].thread_running = 0;
-            msw->sources[i].fmt_ctx = NULL;
-            msw->sources[i].pkt = NULL;
-            msw->sources[i].frame = NULL;
-            msw->sources[i].packet_fifo = NULL;
-            msw->sources[i].frame_fifo = NULL;
-            
             pthread_mutex_init(&msw->sources[i].mutex, NULL);
             pthread_cond_init(&msw->sources[i].cond, NULL);
             
@@ -107,13 +97,7 @@ static int mswitch_parse_sources(MSwitchContext *msw, const char *sources_str)
     msw->nb_sources = i;
     av_free(sources_copy);
     
-    if (i == 0) {
-        mswitch_log(msw, AV_LOG_ERROR, "No valid sources found in sources string\n");
-        return AVERROR(EINVAL);
-    }
-    
-    mswitch_log(msw, AV_LOG_INFO, "Parsed %d sources\n", i);
-    return 0;
+    return (i == 0) ? AVERROR(EINVAL) : 0;
 }
 
 static int mswitch_parse_health_thresholds(MSwitchContext *msw, const char *thresholds_str)
@@ -166,47 +150,95 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
 {
     int ret = 0;
     
-    // Initialize context
-    memset(msw, 0, sizeof(MSwitchContext));
+    // Initialize only the runtime fields, preserving the option fields that were set by command-line parsing
     msw->active_source_index = 0;
     msw->last_switch_time = 0;
     msw->switching = 0;
     msw->metrics_enable = 0;
     msw->json_metrics = 0;
     
+    // Initialize the sources array
+    memset(msw->sources, 0, sizeof(msw->sources));
+    msw->nb_sources = 0;
+    
     // Initialize mutexes and conditions
     pthread_mutex_init(&msw->state_mutex, NULL);
     pthread_cond_init(&msw->switch_cond, NULL);
     
-    // Parse sources from options context (we'll add this to OptionsContext later)
-    // For now, we'll use placeholder values
-    const char *sources_str = "s0=file:input1.mp4;s1=file:input2.mp4";
-    ret = mswitch_parse_sources(msw, sources_str);
-    if (ret < 0) {
-        mswitch_log(msw, AV_LOG_ERROR, "Failed to parse sources\n");
-        return ret;
+    // Initialize threading fields
+    msw->health_running = 0;
+    memset(&msw->health_thread, 0, sizeof(msw->health_thread));
+    
+    // Initialize metrics fields
+    msw->metrics_file = NULL;
+    
+    // Use actual sources from the global context
+    if (global_mswitch_ctx.sources_str && strlen(global_mswitch_ctx.sources_str) > 0) {
+        mswitch_log(msw, AV_LOG_INFO, "Parsing sources: %s\n", global_mswitch_ctx.sources_str);
+        ret = mswitch_parse_sources(msw, global_mswitch_ctx.sources_str);
+        if (ret < 0) {
+            mswitch_log(msw, AV_LOG_ERROR, "Failed to parse sources\n");
+            goto cleanup_on_error;
+        }
+        mswitch_log(msw, AV_LOG_INFO, "Successfully parsed %d sources\n", msw->nb_sources);
+    } else {
+        mswitch_log(msw, AV_LOG_ERROR, "No sources specified for MSwitch\n");
+        ret = AVERROR(EINVAL);
+        goto cleanup_on_error;
     }
     
-    // Set default values
-    msw->ingest_mode = MSW_INGEST_HOT;
-    msw->mode = MSW_MODE_GRACEFUL;
-    msw->buffer_ms = MSW_DEFAULT_BUFFER_MS;
+    // Set values from global context
+    msw->ingest_mode = global_mswitch_ctx.ingest_mode_str ? 
+                      (strcmp(global_mswitch_ctx.ingest_mode_str, "standby") == 0 ? MSW_INGEST_STANDBY : MSW_INGEST_HOT) : 
+                      MSW_INGEST_HOT;
+    
+    if (global_mswitch_ctx.mode_str) {
+        if (strcmp(global_mswitch_ctx.mode_str, "seamless") == 0) {
+            msw->mode = MSW_MODE_SEAMLESS;
+        } else if (strcmp(global_mswitch_ctx.mode_str, "cutover") == 0) {
+            msw->mode = MSW_MODE_CUTOVER;
+        } else {
+            msw->mode = MSW_MODE_GRACEFUL; // default
+        }
+    } else {
+        msw->mode = MSW_MODE_GRACEFUL;
+    }
+    
+    msw->buffer_ms = global_mswitch_ctx.buffer_ms > 0 ? global_mswitch_ctx.buffer_ms : MSW_DEFAULT_BUFFER_MS;
     msw->on_cut = MSW_ON_CUT_FREEZE;
-    msw->freeze_on_cut_ms = 2000;
+    msw->freeze_on_cut_ms = global_mswitch_ctx.freeze_on_cut_ms > 0 ? global_mswitch_ctx.freeze_on_cut_ms : 2000;
     msw->force_layout = 0;
     
-    // Initialize webhook
-    msw->webhook.enable = 0;
-    msw->webhook.port = 8099;
-    msw->webhook.methods = av_strdup("switch,health,config");
+    // Initialize webhook (using global context values)
+    msw->webhook.enable = global_mswitch_ctx.webhook.enable;
+    msw->webhook.port = global_mswitch_ctx.webhook.port > 0 ? global_mswitch_ctx.webhook.port : 8099;
+    if (!msw->webhook.methods) {
+        msw->webhook.methods = av_strdup("switch,health,config");
+        if (!msw->webhook.methods) {
+            ret = AVERROR(ENOMEM);
+            goto cleanup_on_error;
+        }
+    }
     msw->webhook.server_running = 0;
+
+    mswitch_log(msw, AV_LOG_INFO, "Webhook config: enable=%d, port=%d\n", msw->webhook.enable, msw->webhook.port);
+
+    // Start webhook server if enabled
+    if (msw->webhook.enable) {
+        mswitch_log(msw, AV_LOG_INFO, "Starting webhook server on port %d\n", msw->webhook.port);
+        ret = mswitch_webhook_start(msw);
+        if (ret < 0) {
+            mswitch_log(msw, AV_LOG_WARNING, "Failed to start webhook server: %d\n", ret);
+            // Don't fail initialization if webhook fails
+        }
+    }
     
-    // Initialize CLI
-    msw->cli.enable = 0;
+    // Initialize CLI - disable separate thread, use FFmpeg's interactive system
+    msw->cli.enable = 0; // Use FFmpeg's built-in interactive commands instead
     msw->cli.cli_running = 0;
     
     // Initialize auto failover
-    msw->auto_failover.enable = 0;
+    msw->auto_failover.enable = 0; // Auto failover not implemented yet
     msw->auto_failover.health_window_ms = MSW_DEFAULT_HEALTH_WINDOW_MS;
     
     // Initialize revert policy
@@ -214,12 +246,22 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
     msw->revert.health_window_ms = MSW_DEFAULT_HEALTH_WINDOW_MS;
     
     mswitch_log(msw, AV_LOG_INFO, "MSwitch initialized with %d sources\n", msw->nb_sources);
+    mswitch_log(msw, AV_LOG_INFO, "Interactive commands: 0-2 (switch source), m (status), ? (help)\n");
     return 0;
+
+cleanup_on_error:
+    // Clean up partially initialized context
+    mswitch_cleanup(msw);
+    return ret;
 }
 
 int mswitch_cleanup(MSwitchContext *msw)
 {
     int i;
+    
+    if (!msw) {
+        return 0;
+    }
     
     // Stop all threads
     mswitch_stop(msw);
@@ -228,14 +270,23 @@ int mswitch_cleanup(MSwitchContext *msw)
     for (i = 0; i < msw->nb_sources; i++) {
         MSwitchSource *src = &msw->sources[i];
         
-        av_freep(&src->id);
-        av_freep(&src->url);
-        av_freep(&src->name);
+        // Free strings only if they were allocated
+        if (src->id) {
+            av_freep(&src->id);
+        }
+        if (src->url) {
+            av_freep(&src->url);
+        }
+        if (src->name) {
+            av_freep(&src->name);
+        }
         
+        // Close format context
         if (src->fmt_ctx) {
             avformat_close_input(&src->fmt_ctx);
         }
         
+        // Free packet and frame
         if (src->pkt) {
             av_packet_free(&src->pkt);
         }
@@ -244,6 +295,7 @@ int mswitch_cleanup(MSwitchContext *msw)
             av_frame_free(&src->frame);
         }
         
+        // Free FIFOs
         if (src->packet_fifo) {
             av_fifo_freep2(&src->packet_fifo);
         }
@@ -252,14 +304,20 @@ int mswitch_cleanup(MSwitchContext *msw)
             av_fifo_freep2(&src->frame_fifo);
         }
         
+        // Destroy mutex and condition variable - these are always initialized in parse_sources
         pthread_mutex_destroy(&src->mutex);
         pthread_cond_destroy(&src->cond);
     }
     
-    // Cleanup webhook
-    av_freep(&msw->webhook.methods);
+    // Reset source count
+    msw->nb_sources = 0;
     
-    // Cleanup mutexes
+    // Cleanup webhook
+    if (msw->webhook.methods) {
+        av_freep(&msw->webhook.methods);
+    }
+    
+    // Cleanup main mutexes - these are always initialized in mswitch_init
     pthread_mutex_destroy(&msw->state_mutex);
     pthread_cond_destroy(&msw->switch_cond);
     
@@ -590,18 +648,133 @@ int mswitch_check_health(MSwitchContext *msw, int source_index)
     return 0;
 }
 
+// HTTP server thread for webhook
+static void *mswitch_webhook_server_thread(void *arg)
+{
+    MSwitchContext *msw = (MSwitchContext *)arg;
+    int server_fd, client_fd;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[1024] = {0};
+    const char *response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 17\r\n\r\n{\"status\":\"ok\"}";
+    
+    mswitch_log(msw, AV_LOG_INFO, "Starting webhook server thread on port %d\n", msw->webhook.port);
+    
+    // Create socket
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Webhook socket creation failed\n");
+        return NULL;
+    }
+    
+    // Set socket options
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        mswitch_log(msw, AV_LOG_ERROR, "Webhook setsockopt failed\n");
+        close(server_fd);
+        return NULL;
+    }
+    
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(msw->webhook.port);
+    
+    // Bind socket
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Webhook bind failed on port %d\n", msw->webhook.port);
+        close(server_fd);
+        return NULL;
+    }
+    
+    // Listen for connections
+    if (listen(server_fd, 3) < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Webhook listen failed\n");
+        close(server_fd);
+        return NULL;
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Webhook server listening on port %d\n", msw->webhook.port);
+    msw->webhook.server_running = 1;
+    
+    // Accept connections while server is running
+    while (msw->webhook.server_running) {
+        // Set socket to non-blocking for periodic checks
+        fd_set readfds;
+        struct timeval timeout;
+        
+        FD_ZERO(&readfds);
+        FD_SET(server_fd, &readfds);
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+        
+        int activity = select(server_fd + 1, &readfds, NULL, NULL, &timeout);
+        
+        if (activity < 0) {
+            if (!msw->webhook.server_running) break;
+            continue;
+        }
+        
+        if (activity == 0) {
+            // Timeout, check if we should continue
+            continue;
+        }
+        
+        if (FD_ISSET(server_fd, &readfds)) {
+            if ((client_fd = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+                if (!msw->webhook.server_running) break;
+                continue;
+            }
+            
+            // Read request
+            read(client_fd, buffer, 1024);
+            
+            // Send simple response
+            send(client_fd, response, strlen(response), 0);
+            
+            close(client_fd);
+        }
+    }
+    
+    close(server_fd);
+    mswitch_log(msw, AV_LOG_INFO, "Webhook server thread stopped\n");
+    return NULL;
+}
+
 // Placeholder implementations for webhook and CLI
 int mswitch_webhook_start(MSwitchContext *msw)
 {
+    int ret;
+    
+    if (msw->webhook.server_running) {
+        return 0; // Already running
+    }
+    
+    // Start webhook server thread
+    ret = pthread_create(&msw->webhook.server_thread, NULL, mswitch_webhook_server_thread, msw);
+    if (ret != 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create webhook server thread: %d\n", ret);
+        return AVERROR(ret);
+    }
+    
+    // Give the server time to start
+    usleep(100000); // 100ms
+    
     mswitch_log(msw, AV_LOG_INFO, "Webhook server started on port %d\n", msw->webhook.port);
-    msw->webhook.server_running = 1;
     return 0;
 }
 
 int mswitch_webhook_stop(MSwitchContext *msw)
 {
-    mswitch_log(msw, AV_LOG_INFO, "Webhook server stopped\n");
+    if (!msw->webhook.server_running) {
+        return 0; // Already stopped
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Stopping webhook server\n");
     msw->webhook.server_running = 0;
+    
+    // Wait for server thread to finish
+    pthread_join(msw->webhook.server_thread, NULL);
+    
+    mswitch_log(msw, AV_LOG_INFO, "Webhook server stopped\n");
     return 0;
 }
 
@@ -612,17 +785,111 @@ int mswitch_webhook_handle_request(MSwitchContext *msw, const char *json_request
     return 0;
 }
 
+// CLI thread function - reads commands from a file instead of stdin
+static void *mswitch_cli_thread(void *arg)
+{
+    MSwitchContext *msw = (MSwitchContext *)arg;
+    char command_file[] = "/tmp/mswitch_cmd";
+    char input[256];
+    FILE *fp;
+    
+    mswitch_log(msw, AV_LOG_INFO, "CLI interface ready. Send commands by writing to %s\n", command_file);
+    mswitch_log(msw, AV_LOG_INFO, "Commands: echo '0' > %s  (switch to source 0)\n", command_file);
+    mswitch_log(msw, AV_LOG_INFO, "Commands: echo '1' > %s  (switch to source 1)\n", command_file);
+    mswitch_log(msw, AV_LOG_INFO, "Commands: echo '2' > %s  (switch to source 2)\n", command_file);
+    mswitch_log(msw, AV_LOG_INFO, "Commands: echo 's' > %s  (show status)\n", command_file);
+    
+    // Create/clear the command file
+    fp = fopen(command_file, "w");
+    if (fp) {
+        fclose(fp);
+    }
+    
+    while (msw->cli.cli_running) {
+        fp = fopen(command_file, "r");
+        if (fp) {
+            if (fgets(input, sizeof(input), fp) != NULL) {
+                // Remove newline and whitespace
+                input[strcspn(input, "\n\r \t")] = 0;
+                
+                if (strlen(input) == 1) {
+                    char cmd = input[0];
+                    
+                    if (cmd >= '0' && cmd <= '2') {
+                        int source_index = cmd - '0';
+                        if (source_index < msw->nb_sources) {
+                            msw->active_source_index = source_index;
+                            mswitch_log(msw, AV_LOG_INFO, "Switched to source %d (%s)\n", 
+                                       source_index, msw->sources[source_index].id);
+                        } else {
+                            mswitch_log(msw, AV_LOG_WARNING, "Source %d not available (only %d sources)\n", 
+                                       source_index, msw->nb_sources);
+                        }
+                    } else if (cmd == 's') {
+                        mswitch_log(msw, AV_LOG_INFO, "Status: Active source = %d (%s), Total sources = %d\n",
+                                   msw->active_source_index, 
+                                   msw->sources[msw->active_source_index].id,
+                                   msw->nb_sources);
+                    } else if (cmd != '\0') {
+                        mswitch_log(msw, AV_LOG_INFO, "Unknown command '%c'. Use 0-2 or s\n", cmd);
+                    }
+                    
+                    // Clear the command file after processing
+                    fclose(fp);
+                    fp = fopen(command_file, "w");
+                    if (fp) {
+                        fclose(fp);
+                    }
+                } else {
+                    fclose(fp);
+                }
+            } else {
+                fclose(fp);
+            }
+        }
+        usleep(500000); // 500ms delay
+    }
+    
+    // Clean up command file
+    unlink(command_file);
+    return NULL;
+}
+
 int mswitch_cli_start(MSwitchContext *msw)
 {
-    mswitch_log(msw, AV_LOG_INFO, "CLI interface started\n");
+    int ret;
+    
+    if (msw->cli.cli_running) {
+        return 0; // Already running
+    }
+    
     msw->cli.cli_running = 1;
+    
+    // Start CLI thread
+    ret = pthread_create(&msw->cli.cli_thread, NULL, mswitch_cli_thread, msw);
+    if (ret != 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create CLI thread: %d\n", ret);
+        msw->cli.cli_running = 0;
+        return AVERROR(ret);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "CLI interface started\n");
     return 0;
 }
 
 int mswitch_cli_stop(MSwitchContext *msw)
 {
-    mswitch_log(msw, AV_LOG_INFO, "CLI interface stopped\n");
+    if (!msw->cli.cli_running) {
+        return 0; // Already stopped
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Stopping CLI interface\n");
     msw->cli.cli_running = 0;
+    
+    // Wait for CLI thread to finish
+    pthread_join(msw->cli.cli_thread, NULL);
+    
+    mswitch_log(msw, AV_LOG_INFO, "CLI interface stopped\n");
     return 0;
 }
 

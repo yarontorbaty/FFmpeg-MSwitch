@@ -55,7 +55,7 @@ HWDevice *filter_hw_device;
 char *vstats_filename;
 
 /* Global Multi-Source Switch context */
-MSwitchContext global_mswitch_ctx;
+MSwitchContext global_mswitch_ctx = {0};
 int global_mswitch_enabled = 0;
 
 float dts_delta_threshold   = 10;
@@ -2112,10 +2112,10 @@ const OptionDef options[] = {
         {              &global_mswitch_ctx.sources_str },
         "define multi-source inputs (s0=url1;s1=url2;s2=url3)", "sources" },
     { "msw.ingest",             OPT_TYPE_STRING, OPT_EXPERT,
-        {              &global_mswitch_ctx.ingest_mode },
+        {              &global_mswitch_ctx.ingest_mode_str },
         "ingestion mode (standby|hot)", "mode" },
     { "msw.mode",               OPT_TYPE_STRING, OPT_EXPERT,
-        {              &global_mswitch_ctx.mode },
+        {              &global_mswitch_ctx.mode_str },
         "failover mode (seamless|graceful|cutover)", "mode" },
     { "msw.buffer_ms",          OPT_TYPE_INT, OPT_EXPERT,
         {              &global_mswitch_ctx.buffer_ms },

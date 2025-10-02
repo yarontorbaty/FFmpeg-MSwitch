@@ -148,6 +148,9 @@ typedef struct MSwitchContext {
     
     // Additional fields for option parsing
     char *sources_str;
+    char *ingest_mode_str;
+    char *mode_str;
+    char *on_cut_str;
     char *config_file;
     
     // Threading and synchronization
