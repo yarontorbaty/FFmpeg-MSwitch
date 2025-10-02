@@ -31,6 +31,11 @@
 
 #include "libavcodec/packet.h"
 
+#include "ffmpeg_mswitch.h"
+
+// MSwitch switching is now handled at the filter graph level via streamselect filter
+// No need for scheduler-level frame filtering
+
 #include "libavutil/avassert.h"
 #include "libavutil/error.h"
 #include "libavutil/fifo.h"
@@ -1722,7 +1727,7 @@ int sch_wait(Scheduler *sch, uint64_t timeout_us, int64_t *transcode_ts)
     return ret;
 }
 
-static int enc_open(Scheduler *sch, SchEnc *enc, const AVFrame *frame)
+static int enc_open_internal(Scheduler *sch, SchEnc *enc, const AVFrame *frame)
 {
     int ret;
 
@@ -1846,7 +1851,7 @@ finish:
 static int send_to_enc(Scheduler *sch, SchEnc *enc, AVFrame *frame)
 {
     if (enc->open_cb && frame && !enc->opened) {
-        int ret = enc_open(sch, enc, frame);
+        int ret = enc_open_internal(sch, enc, frame);
         if (ret < 0)
             return ret;
         enc->opened = 1;
@@ -2286,6 +2291,9 @@ int sch_dec_send(Scheduler *sch, unsigned dec_idx,
 
     av_assert0(out_idx < dec->nb_outputs);
     o = &dec->outputs[out_idx];
+
+    // NOTE: MSwitch frame switching is now handled by streamselect filter in filter graph
+    // No need for manual frame filtering here anymore
 
     for (unsigned i = 0; i < o->nb_dst; i++) {
         uint8_t *finished = &o->dst_finished[i];

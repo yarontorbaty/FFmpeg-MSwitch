@@ -51,6 +51,19 @@ typedef struct MSwitchSource {
     int latency_ms;              // latency offset
     int loop;                    // loop file sources
     
+    // Subprocess management for frame-level switching
+    pid_t subprocess_pid;        // PID of source FFmpeg process
+    int subprocess_stdout;       // stdout pipe from subprocess (raw frames)
+    int subprocess_stderr;       // stderr pipe from subprocess
+    int subprocess_running;      // Flag indicating if subprocess is active
+    char *subprocess_output_url; // UDP URL where subprocess outputs (e.g., "udp://127.0.0.1:12350")
+    pthread_t monitor_thread;    // Thread to monitor subprocess health
+    
+    // Pipe-based frame switching (for graceful/cutover modes)
+    int frame_pipe_fd;           // Pipe for raw frame data
+    AVFrame *current_frame;      // Current decoded frame
+    pthread_mutex_t frame_mutex; // Protect frame access
+    
     // Runtime state
     AVFormatContext *fmt_ctx;
     AVCodecContext *dec_ctx[AVMEDIA_TYPE_NB];
@@ -144,6 +157,37 @@ typedef struct MSwitchContext {
     int active_source_index;
     int64_t last_switch_time;
     int switching;
+    
+    // Filter-based switching
+    void *streamselect_ctx;        // AVFilterContext* for streamselect filter
+    void *filter_graph;            // AVFilterGraph* that contains streamselect
+    
+    // Mode-specific management
+    int frame_switching_enabled;   // True for graceful/cutover modes
+    int packet_switching_enabled;  // True for seamless mode
+    int standby_mode_enabled;      // True for standby ingest
+    
+    // Frame switching infrastructure (graceful/cutover modes)
+    AVFrame *output_frame;         // Current output frame
+    pthread_t frame_switch_thread; // Thread to handle frame switching
+    pthread_mutex_t output_mutex;  // Protect output frame
+    pthread_cond_t frame_ready_cond; // Signal when frame is ready
+    
+    // Packet switching infrastructure (seamless mode)
+    pthread_t packet_switch_thread; // Thread to handle packet switching
+    
+    // Subprocess management
+    int base_udp_port;             // Base port for subprocess UDP outputs (seamless mode)
+    AVFormatContext *active_input; // Input context for currently active subprocess
+    pthread_t switch_thread;       // Thread to handle source switching
+    int switch_requested;          // Flag indicating switch is requested
+    int target_source_index;       // Target source for pending switch
+    
+    // Frame feeding for virtual input approach
+    AVFrame *current_frame;        // Current frame to feed to output
+    pthread_mutex_t frame_mutex;   // Protect current_frame access
+    int frame_ready;               // Flag indicating frame is ready
+    pthread_cond_t frame_cond;     // Signal when new frame is ready
     int metrics_enable;
     
     // Additional fields for option parsing
@@ -158,6 +202,8 @@ typedef struct MSwitchContext {
     pthread_cond_t switch_cond;
     pthread_t health_thread;
     int health_running;
+    pthread_t proxy_thread;        // UDP proxy thread (Phase 2)
+    int proxy_running;             // Flag indicating proxy thread is active
     
     // Metrics and logging
     FILE *metrics_file;
@@ -211,6 +257,9 @@ int mswitch_detect_packet_loss_percent(MSwitchSource *source, int64_t current_ti
 int mswitch_switch_seamless(MSwitchContext *msw, int target_index);
 int mswitch_switch_graceful(MSwitchContext *msw, int target_index);
 int mswitch_switch_cutover(MSwitchContext *msw, int target_index);
+
+// Filter-based switching
+int mswitch_setup_filter(MSwitchContext *msw, void *filter_graph, void *streamselect_ctx);
 
 // Freeze/Black frame generation
 int mswitch_generate_freeze_frame(MSwitchContext *msw, AVFrame *last_frame, int duration_ms);

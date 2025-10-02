@@ -472,7 +472,7 @@ static int input_packet_process(Demuxer *d, AVPacket *pkt, unsigned *send_flags)
     if (global_mswitch_enabled && global_mswitch_ctx.nb_sources > 0) {
         static int log_counter = 0;
         if (log_counter++ % 50 == 0) { // Log every 50th packet to reduce spam
-            av_log(NULL, AV_LOG_INFO, "[MSwitch] Processing packet from input %d (active: %d)\n", 
+            av_log(NULL, AV_LOG_DEBUG, "[MSwitch] Processing packet from input %d (active: %d)\n", 
                    f->index, global_mswitch_ctx.active_source_index);
         }
     }
@@ -754,15 +754,6 @@ static int input_thread(void *arg)
         DemuxStream *ds;
         unsigned send_flags = 0;
 
-        // MSwitch integration: Let all threads read packets, but control routing
-        if (global_mswitch_enabled && global_mswitch_ctx.nb_sources > 0) {
-            static int log_counter = 0;
-            if (log_counter++ % 100 == 0) { // Log every 100th packet to reduce spam
-                av_log(d, AV_LOG_INFO, "[MSwitch] Input thread %d: reading packets (active: %d)\n", 
-                       f->index, global_mswitch_ctx.active_source_index);
-            }
-        }
-
         ret = av_read_frame(f->ctx, dt.pkt_demux);
 
         if (ret == AVERROR(EAGAIN)) {
@@ -831,32 +822,6 @@ static int input_thread(void *arg)
 
         if (d->readrate)
             readrate_sleep(d);
-
-        // MSwitch integration: Control packet routing based on active source
-        if (global_mswitch_enabled && global_mswitch_ctx.nb_sources > 0) {
-            int active_source = global_mswitch_ctx.active_source_index;
-            
-            if (f->index == active_source) {
-                // This is the active source
-                if (active_source != 0) {
-                    // Active source is not input 0 - redirect to demux 0, stream 0
-                    dt.pkt_demux->stream_index = 0;
-                    av_log(d, AV_LOG_INFO, "[MSwitch] Redirecting packet from input %d to demux 0, stream 0\n", f->index);
-                    ret = sch_demux_send(d->sch, 0, dt.pkt_demux, send_flags);
-                    if (ret < 0)
-                        break;
-                    continue; // Skip normal demux_send
-                } else {
-                    // Active source is input 0 - process normally
-                    av_log(d, AV_LOG_DEBUG, "[MSwitch] Input 0: processing packet normally (active)\n");
-                }
-            } else {
-                // This is not the active source - discard packet
-                av_log(d, AV_LOG_DEBUG, "[MSwitch] Input %d: discarding packet (active: %d)\n", f->index, active_source);
-                av_packet_unref(dt.pkt_demux);
-                continue;
-            }
-        }
 
         ret = demux_send(d, &dt, ds, dt.pkt_demux, send_flags);
         if (ret < 0)

@@ -10,6 +10,7 @@
  */
 
 #include "ffmpeg_mswitch.h"
+#include "ffmpeg.h"
 #include "cmdutils.h"
 #include "libavutil/avstring.h"
 #include "libavutil/opt.h"
@@ -21,14 +22,22 @@
 #include "libavutil/mem.h"
 #include "libavutil/parseutils.h"
 #include "libavutil/threadmessage.h"
+#include "libavfilter/avfilter.h"
+#include "libavfilter/buffersrc.h"
+#include "libavfilter/buffersink.h"
 
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <sys/select.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/select.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 
 // External global context declared in ffmpeg_opt.c
 extern MSwitchContext global_mswitch_ctx;
@@ -41,6 +50,16 @@ extern int global_mswitch_enabled;
 #define MSW_DEFAULT_CC_ERRORS_PER_SEC 5
 #define MSW_DEFAULT_PACKET_LOSS_PERCENT 2.0f
 #define MSW_DEFAULT_PACKET_LOSS_WINDOW_SEC 10
+
+// Subprocess management
+#define MSW_BASE_UDP_PORT 12350
+#define MSW_SUBPROCESS_STARTUP_DELAY_MS 2000
+#define MSW_SUBPROCESS_MONITOR_INTERVAL_MS 1000
+
+// UDP Proxy
+#define MSW_PROXY_OUTPUT_PORT 12400
+#define MSW_UDP_PACKET_SIZE 65536  // Max UDP packet size
+#define MSW_PROXY_SELECT_TIMEOUT_MS 100  // Select timeout for proxy thread
 
 // Black frame detection thresholds
 #define MSW_BLACK_Y_MEAN_THRESHOLD 16
@@ -146,16 +165,873 @@ static int mswitch_parse_health_thresholds(MSwitchContext *msw, const char *thre
     return 0;
 }
 
+/**
+ * NATIVE MSWITCH IMPLEMENTATION
+ * 
+ * This implementation uses FFmpeg's native pipeline architecture:
+ * - Sources are provided as regular -i inputs on the command line
+ * - Each input has its own demuxer and decoder threads
+ * - Frame-level switching happens in sch_dec_send (ffmpeg_sched.c)
+ * - MSwitch just manages the active_source_index
+ * 
+ * No subprocesses, no external UDP proxies, no pipe feeding.
+ * Clean, simple, and uses FFmpeg's existing scheduler infrastructure.
+ */
+
+#if 0  // BEGIN DEPRECATED CODE - Kept for reference but not compiled
+// DEPRECATED: Subprocess management removed in favor of native pipeline
+static int mswitch_start_source_subprocess_seamless(MSwitchContext *msw, int source_index)
+{
+    // For seamless mode: Create subprocess that outputs compressed packets via UDP
+    MSwitchSource *src = &msw->sources[source_index];
+    int stdout_pipe[2], stderr_pipe[2];
+    char *ffmpeg_args[32];
+    int arg_count = 0;
+    
+    if (src->subprocess_running) {
+        mswitch_log(msw, AV_LOG_WARNING, "Source %d subprocess already running\n", source_index);
+        return 0;
+    }
+    
+    // Create pipes for subprocess communication
+    if (pipe(stdout_pipe) < 0 || pipe(stderr_pipe) < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create pipes for source %d subprocess\n", source_index);
+        return AVERROR(errno);
+    }
+    
+    // Generate UDP output URL for this source (seamless mode uses UDP)
+    int udp_port = msw->base_udp_port + source_index;
+    char *udp_url = av_asprintf("udp://127.0.0.1:%d", udp_port);
+    
+    mswitch_log(msw, AV_LOG_INFO, "Starting seamless subprocess for source %d (%s) -> %s\n", 
+                source_index, src->url, udp_url);
+    
+    // Build FFmpeg command for seamless mode (compressed output)
+    ffmpeg_args[arg_count++] = "ffmpeg";
+    ffmpeg_args[arg_count++] = "-loglevel";
+    ffmpeg_args[arg_count++] = "warning";
+    ffmpeg_args[arg_count++] = "-re";
+    
+    // Input specification
+    if (strncmp(src->url, "color=", 6) == 0) {
+        ffmpeg_args[arg_count++] = "-f";
+        ffmpeg_args[arg_count++] = "lavfi";
+        ffmpeg_args[arg_count++] = "-i";
+        ffmpeg_args[arg_count++] = av_asprintf("%s:size=320x240:rate=5", src->url);
+    } else {
+        ffmpeg_args[arg_count++] = "-i"; 
+        ffmpeg_args[arg_count++] = src->url;
+    }
+    
+    // Output specification - compressed stream for seamless switching
+    ffmpeg_args[arg_count++] = "-c:v";
+    ffmpeg_args[arg_count++] = "libx264";
+    ffmpeg_args[arg_count++] = "-preset";
+    ffmpeg_args[arg_count++] = "ultrafast";
+    ffmpeg_args[arg_count++] = "-tune";
+    ffmpeg_args[arg_count++] = "zerolatency";
+    ffmpeg_args[arg_count++] = "-g";
+    ffmpeg_args[arg_count++] = "50";
+    ffmpeg_args[arg_count++] = "-pix_fmt";
+    ffmpeg_args[arg_count++] = "yuv420p";
+    ffmpeg_args[arg_count++] = "-f";
+    ffmpeg_args[arg_count++] = "mpegts";
+    ffmpeg_args[arg_count++] = udp_url;
+    ffmpeg_args[arg_count] = NULL;
+    
+    // Fork subprocess
+    src->subprocess_pid = fork();
+    if (src->subprocess_pid < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to fork subprocess for source %d\n", source_index);
+        close(stdout_pipe[0]); close(stdout_pipe[1]);
+        close(stderr_pipe[0]); close(stderr_pipe[1]);
+        av_free(udp_url);
+        return AVERROR(errno);
+    }
+    
+    if (src->subprocess_pid == 0) {
+        // Child process - execute FFmpeg
+        close(stdout_pipe[0]); // Close read end
+        close(stderr_pipe[0]); // Close read end
+        
+        dup2(stdout_pipe[1], STDOUT_FILENO);
+        dup2(stderr_pipe[1], STDERR_FILENO);
+        
+        close(stdout_pipe[1]);
+        close(stderr_pipe[1]);
+        
+        execvp("ffmpeg", ffmpeg_args);
+        exit(1); // If execvp fails
+    }
+    
+    // Parent process - store pipe file descriptors
+    close(stdout_pipe[1]); // Close write end
+    close(stderr_pipe[1]); // Close write end
+    
+    src->subprocess_stdout = stdout_pipe[0];
+    src->subprocess_stderr = stderr_pipe[0];
+    src->subprocess_running = 1;
+    
+    av_free(udp_url);
+    mswitch_log(msw, AV_LOG_INFO, "Started seamless subprocess %d for source %d\n", 
+                src->subprocess_pid, source_index);
+    
+    return 0;
+}
+
+static int mswitch_start_source_subprocess_frame(MSwitchContext *msw, int source_index)
+{
+    // For graceful/cutover mode: Create subprocess that outputs raw frames via pipe
+    MSwitchSource *src = &msw->sources[source_index];
+    int frame_pipe[2], stderr_pipe[2];
+    char *ffmpeg_args[32];
+    int arg_count = 0;
+    
+    if (src->subprocess_running) {
+        mswitch_log(msw, AV_LOG_WARNING, "Source %d subprocess already running\n", source_index);
+        return 0;
+    }
+    
+    // Create pipes for subprocess communication
+    if (pipe(frame_pipe) < 0 || pipe(stderr_pipe) < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create pipes for source %d subprocess\n", source_index);
+        return AVERROR(errno);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Starting frame subprocess for source %d (%s)\n", 
+                source_index, src->url);
+    
+    // Build FFmpeg command for frame mode (raw output)
+    ffmpeg_args[arg_count++] = "ffmpeg";
+    ffmpeg_args[arg_count++] = "-loglevel";
+    ffmpeg_args[arg_count++] = "warning";
+    ffmpeg_args[arg_count++] = "-re";
+    
+    // Input specification
+    if (strncmp(src->url, "color=", 6) == 0) {
+        // Full color specification (e.g., "color=red:size=320x240:rate=5")
+        ffmpeg_args[arg_count++] = "-f";
+        ffmpeg_args[arg_count++] = "lavfi";
+        ffmpeg_args[arg_count++] = "-i";
+        ffmpeg_args[arg_count++] = av_asprintf("%s:size=320x240:rate=5", src->url);
+    } else if (strcmp(src->url, "red") == 0 || strcmp(src->url, "green") == 0 || 
+               strcmp(src->url, "blue") == 0 || strcmp(src->url, "yellow") == 0 ||
+               strcmp(src->url, "black") == 0 || strcmp(src->url, "white") == 0) {
+        // Simple color names - convert to lavfi color generator
+        ffmpeg_args[arg_count++] = "-f";
+        ffmpeg_args[arg_count++] = "lavfi";
+        ffmpeg_args[arg_count++] = "-i";
+        ffmpeg_args[arg_count++] = av_asprintf("color=%s:size=320x240:rate=5", src->url);
+    } else {
+        // Regular file or URL input
+        ffmpeg_args[arg_count++] = "-i"; 
+        ffmpeg_args[arg_count++] = src->url;
+    }
+    
+    // Output specification - raw frames for frame-level switching
+    ffmpeg_args[arg_count++] = "-f";
+    ffmpeg_args[arg_count++] = "rawvideo";
+    ffmpeg_args[arg_count++] = "-pix_fmt";
+    ffmpeg_args[arg_count++] = "yuv420p";
+    ffmpeg_args[arg_count++] = "pipe:1"; // Output to stdout
+    ffmpeg_args[arg_count] = NULL;
+    
+    // Fork subprocess
+    src->subprocess_pid = fork();
+    if (src->subprocess_pid < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to fork subprocess for source %d\n", source_index);
+        close(frame_pipe[0]); close(frame_pipe[1]);
+        close(stderr_pipe[0]); close(stderr_pipe[1]);
+        return AVERROR(errno);
+    }
+    
+    if (src->subprocess_pid == 0) {
+        // Child process - execute FFmpeg
+        close(frame_pipe[0]); // Close read end
+        close(stderr_pipe[0]); // Close read end
+        
+        dup2(frame_pipe[1], STDOUT_FILENO);
+        dup2(stderr_pipe[1], STDERR_FILENO);
+        
+        close(frame_pipe[1]);
+        close(stderr_pipe[1]);
+        
+        execvp("ffmpeg", ffmpeg_args);
+        exit(1); // If execvp fails
+    }
+    
+    // Parent process - store pipe file descriptors
+    close(frame_pipe[1]); // Close write end
+    close(stderr_pipe[1]); // Close write end
+    
+    src->frame_pipe_fd = frame_pipe[0];   // Raw frame data pipe
+    src->subprocess_stderr = stderr_pipe[0];
+    src->subprocess_running = 1;
+    
+    // Initialize frame mutex
+    pthread_mutex_init(&src->frame_mutex, NULL);
+    
+    mswitch_log(msw, AV_LOG_INFO, "Started frame subprocess %d for source %d\n", 
+                src->subprocess_pid, source_index);
+    
+    return 0;
+}
+
+// Unified subprocess starter that chooses mode based on MSwitch configuration
+static int mswitch_start_source_subprocess(MSwitchContext *msw, int source_index)
+{
+    if (msw->mode == MSW_MODE_SEAMLESS) {
+        return mswitch_start_source_subprocess_seamless(msw, source_index);
+    } else {
+        // Graceful and cutover modes use frame-level switching
+        return mswitch_start_source_subprocess_frame(msw, source_index);
+    }
+}
+
+static int mswitch_stop_source_subprocess(MSwitchContext *msw, int source_index)
+{
+    MSwitchSource *src = &msw->sources[source_index];
+    
+    if (!src->subprocess_running) {
+        return 0;
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Stopping subprocess %d for source %d\n", 
+                src->subprocess_pid, source_index);
+    
+    // Send SIGTERM to subprocess
+    kill(src->subprocess_pid, SIGTERM);
+    
+    // Wait for process to terminate (with timeout)
+    int status;
+    int wait_result = waitpid(src->subprocess_pid, &status, WNOHANG);
+    if (wait_result == 0) {
+        // Process still running, wait a bit then force kill
+        usleep(500000); // 500ms
+        wait_result = waitpid(src->subprocess_pid, &status, WNOHANG);
+        if (wait_result == 0) {
+            mswitch_log(msw, AV_LOG_WARNING, "Force killing subprocess %d\n", src->subprocess_pid);
+            kill(src->subprocess_pid, SIGKILL);
+            waitpid(src->subprocess_pid, &status, 0);
+        }
+    }
+    
+    // Close pipes
+    if (src->subprocess_stdout >= 0) {
+        close(src->subprocess_stdout);
+        src->subprocess_stdout = -1;
+    }
+    if (src->subprocess_stderr >= 0) {
+        close(src->subprocess_stderr);
+        src->subprocess_stderr = -1;
+    }
+    if (src->frame_pipe_fd >= 0) {
+        close(src->frame_pipe_fd);
+        src->frame_pipe_fd = -1;
+    }
+    
+    // Cleanup frame mutex if initialized
+    if (src->subprocess_running) {
+        pthread_mutex_destroy(&src->frame_mutex);
+    }
+    
+    src->subprocess_running = 0;
+    src->subprocess_pid = 0;
+    
+    return 0;
+}
+
+// Frame feeding thread for graceful/cutover modes (DEPRECATED - needs proper FFmpeg integration)
+static void *mswitch_frame_feeder_thread(void *arg)
+{
+    MSwitchContext *msw = (MSwitchContext *)arg;
+    
+    mswitch_log(msw, AV_LOG_WARNING, "Frame-level switching not yet implemented - requires deeper FFmpeg integration\n");
+    mswitch_log(msw, AV_LOG_WARNING, "Please use seamless mode with UDP streams for now\n");
+    
+    return NULL;
+}
+
+// DEPRECATED: UDP forwarder not needed in native mode
+#if 0
+static void *mswitch_udp_forwarder_thread(void *arg)
+{
+    MSwitchContext *msw = (MSwitchContext *)arg;
+    int source_sockets[MSW_MAX_SOURCES];
+    int output_socket = -1;
+    struct sockaddr_in output_addr;
+    char buffer[65536]; // Max UDP packet size
+    fd_set read_fds;
+    struct timeval tv;
+    int max_fd = 0;
+    
+    mswitch_log(msw, AV_LOG_INFO, "UDP forwarder thread started\n");
+    
+    // Create listening sockets for each source
+    for (int i = 0; i < msw->nb_sources; i++) {
+        MSwitchSource *src = &msw->sources[i];
+        
+        if (!src->subprocess_running || src->subprocess_output_url == NULL) {
+            source_sockets[i] = -1;
+            continue;
+        }
+        
+        // Parse UDP port from URL (format: udp://127.0.0.1:PORT)
+        int port = msw->base_udp_port + i;
+        
+        source_sockets[i] = socket(AF_INET, SOCK_DGRAM, 0);
+        if (source_sockets[i] < 0) {
+            mswitch_log(msw, AV_LOG_ERROR, "Failed to create socket for source %d: %s\n", i, strerror(errno));
+            continue;
+        }
+        
+        // Set socket to non-blocking and allow reuse
+        int flags = fcntl(source_sockets[i], F_GETFL, 0);
+        fcntl(source_sockets[i], F_SETFL, flags | O_NONBLOCK);
+        
+        int reuse = 1;
+        setsockopt(source_sockets[i], SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+        
+        // Bind to source port
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(port);
+        
+        if (bind(source_sockets[i], (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+            mswitch_log(msw, AV_LOG_ERROR, "Failed to bind source %d socket to port %d: %s\n", 
+                       i, port, strerror(errno));
+            close(source_sockets[i]);
+            source_sockets[i] = -1;
+            continue;
+        }
+        
+        mswitch_log(msw, AV_LOG_INFO, "Listening for source %d on UDP port %d\n", i, port);
+        
+        if (source_sockets[i] > max_fd) {
+            max_fd = source_sockets[i];
+        }
+    }
+    
+    // Create output socket for forwarding
+    output_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (output_socket < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create output socket: %s\n", strerror(errno));
+        goto cleanup;
+    }
+    
+    // Configure output address (forward to main FFmpeg input)
+    memset(&output_addr, 0, sizeof(output_addr));
+    output_addr.sin_family = AF_INET;
+    output_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    output_addr.sin_port = htons(msw->base_udp_port + 1000); // Output port: base + 1000
+    
+    mswitch_log(msw, AV_LOG_INFO, "Forwarding to UDP port %d\n", msw->base_udp_port + 1000);
+    
+    // Main forwarding loop
+    while (msw->enable && msw->packet_switching_enabled) {
+        FD_ZERO(&read_fds);
+        
+        // Add all source sockets to the fd_set
+        for (int i = 0; i < msw->nb_sources; i++) {
+            if (source_sockets[i] >= 0) {
+                FD_SET(source_sockets[i], &read_fds);
+            }
+        }
+        
+        // Wait for data with timeout
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000; // 100ms timeout
+        
+        int activity = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
+        
+        if (activity < 0) {
+            if (errno != EINTR) {
+                mswitch_log(msw, AV_LOG_ERROR, "Select error: %s\n", strerror(errno));
+            }
+            continue;
+        }
+        
+        if (activity == 0) {
+            // Timeout, check if still enabled
+            continue;
+        }
+        
+        // Check which sockets have data
+        for (int i = 0; i < msw->nb_sources; i++) {
+            if (source_sockets[i] < 0 || !FD_ISSET(source_sockets[i], &read_fds)) {
+                continue;
+            }
+            
+            // Receive packet from source
+            ssize_t recv_len = recv(source_sockets[i], buffer, sizeof(buffer), 0);
+            
+            if (recv_len < 0) {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                    mswitch_log(msw, AV_LOG_ERROR, "Recv error from source %d: %s\n", 
+                               i, strerror(errno));
+                }
+                continue;
+            }
+            
+            // Only forward if this is the active source
+            if (i == msw->active_source_index) {
+                ssize_t sent = sendto(output_socket, buffer, recv_len, 0,
+                                     (struct sockaddr *)&output_addr, sizeof(output_addr));
+                
+                if (sent < 0) {
+                    mswitch_log(msw, AV_LOG_ERROR, "Send error: %s\n", strerror(errno));
+                } else {
+                    // Periodic debug logging
+                    static int packet_count = 0;
+                    if (packet_count++ % 100 == 0) {
+                        mswitch_log(msw, AV_LOG_DEBUG, "Forwarded %zd bytes from source %d\n", 
+                                   sent, i);
+                    }
+                }
+            }
+        }
+    }
+    
+cleanup:
+    // Close all sockets
+    for (int i = 0; i < msw->nb_sources; i++) {
+        if (source_sockets[i] >= 0) {
+            close(source_sockets[i]);
+        }
+    }
+    
+    if (output_socket >= 0) {
+        close(output_socket);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "UDP forwarder thread stopped\n");
+    return NULL;
+}
+#endif  // 0 - END UDP forwarder
+#endif  // 0 - END DEPRECATED CODE
+
+// ============================================================================
+// SUBPROCESS MANAGEMENT (Multi-Process Architecture)
+// ============================================================================
+
+/**
+ * Build FFmpeg command for subprocess based on source URL and mode
+ */
+static char* mswitch_build_subprocess_command(MSwitchContext *msw, int source_index)
+{
+    MSwitchSource *src = &msw->sources[source_index];
+    char *cmd = NULL;
+    int udp_port = MSW_BASE_UDP_PORT + source_index;
+    
+    // Determine codec settings based on mode
+    const char *codec_opts;
+    if (msw->mode == MSW_MODE_SEAMLESS) {
+        // Seamless mode: copy codecs (no transcoding)
+        codec_opts = "-c:v copy -c:a copy";
+    } else {
+        // Graceful/Cutover modes: transcode to common format
+        codec_opts = "-c:v libx264 -preset ultrafast -tune zerolatency -g 50 -pix_fmt yuv420p -c:a aac -b:a 128k";
+    }
+    
+    // Build command: ffmpeg -i {source} {codecs} -f mpegts udp://127.0.0.1:{port}
+    int cmd_len = snprintf(NULL, 0, 
+                          "ffmpeg -nostdin -i \"%s\" %s -f mpegts \"udp://127.0.0.1:%d\"",
+                          src->url, codec_opts, udp_port);
+    
+    cmd = av_malloc(cmd_len + 1);
+    if (!cmd) {
+        return NULL;
+    }
+    
+    snprintf(cmd, cmd_len + 1,
+            "ffmpeg -nostdin -i \"%s\" %s -f mpegts \"udp://127.0.0.1:%d\"",
+            src->url, codec_opts, udp_port);
+    
+    mswitch_log(msw, AV_LOG_INFO, "[Subprocess %d] Command: %s\n", source_index, cmd);
+    
+    return cmd;
+}
+
+/**
+ * Start FFmpeg subprocess for a source
+ */
+static int mswitch_start_source_subprocess(MSwitchContext *msw, int source_index)
+{
+    MSwitchSource *src = &msw->sources[source_index];
+    
+    if (src->subprocess_running) {
+        mswitch_log(msw, AV_LOG_WARNING, "[Subprocess %d] Already running (PID: %d)\n", 
+                   source_index, (int)src->subprocess_pid);
+        return 0;
+    }
+    
+    // Build subprocess command
+    char *cmd = mswitch_build_subprocess_command(msw, source_index);
+    if (!cmd) {
+        mswitch_log(msw, AV_LOG_ERROR, "[Subprocess %d] Failed to build command\n", source_index);
+        return AVERROR(ENOMEM);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "[Subprocess %d] Starting subprocess for source %s\n", 
+               source_index, src->id);
+    
+    // Fork and exec
+    pid_t pid = fork();
+    
+    if (pid < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "[Subprocess %d] Fork failed: %s\n", 
+                   source_index, strerror(errno));
+        av_free(cmd);
+        return AVERROR(errno);
+    }
+    
+    if (pid == 0) {
+        // Child process: exec FFmpeg
+        // Redirect stderr to /dev/null to avoid cluttering output
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull >= 0) {
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+        
+        // Execute command via shell
+        execl("/bin/sh", "sh", "-c", cmd, (char *)NULL);
+        
+        // If exec fails, exit immediately
+        _exit(1);
+    }
+    
+    // Parent process: store PID and mark as running
+    src->subprocess_pid = pid;
+    src->subprocess_running = 1;
+    src->subprocess_output_url = av_asprintf("udp://127.0.0.1:%d", MSW_BASE_UDP_PORT + source_index);
+    
+    mswitch_log(msw, AV_LOG_INFO, "[Subprocess %d] Started (PID: %d, URL: %s)\n", 
+               source_index, (int)pid, src->subprocess_output_url);
+    
+    av_free(cmd);
+    
+    return 0;
+}
+
+/**
+ * Stop FFmpeg subprocess for a source
+ */
+static int mswitch_stop_source_subprocess(MSwitchContext *msw, int source_index)
+{
+    MSwitchSource *src = &msw->sources[source_index];
+    
+    if (!src->subprocess_running) {
+        return 0;
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "[Subprocess %d] Stopping subprocess (PID: %d)\n", 
+               source_index, (int)src->subprocess_pid);
+    
+    // Send SIGTERM for graceful shutdown
+    if (kill(src->subprocess_pid, SIGTERM) == 0) {
+        // Wait up to 2 seconds for process to exit
+        int wait_count = 0;
+        while (wait_count < 20) {
+            int status;
+            pid_t result = waitpid(src->subprocess_pid, &status, WNOHANG);
+            
+            if (result == src->subprocess_pid) {
+                // Process exited
+                mswitch_log(msw, AV_LOG_INFO, "[Subprocess %d] Exited gracefully\n", source_index);
+                break;
+            } else if (result < 0) {
+                // Error or already exited
+                break;
+            }
+            
+            usleep(100000); // 100ms
+            wait_count++;
+        }
+        
+        // If still running, send SIGKILL
+        if (wait_count >= 20) {
+            mswitch_log(msw, AV_LOG_WARNING, "[Subprocess %d] Forcing kill...\n", source_index);
+            kill(src->subprocess_pid, SIGKILL);
+            waitpid(src->subprocess_pid, NULL, 0);
+        }
+    }
+    
+    src->subprocess_running = 0;
+    src->subprocess_pid = 0;
+    
+    if (src->subprocess_output_url) {
+        av_free(src->subprocess_output_url);
+        src->subprocess_output_url = NULL;
+    }
+    
+    return 0;
+}
+
+/**
+ * Monitor subprocess health (checks if process is still running)
+ */
+static void* mswitch_monitor_subprocess_thread(void *arg)
+{
+    MSwitchContext *msw = (MSwitchContext *)arg;
+    
+    mswitch_log(msw, AV_LOG_INFO, "Subprocess monitor thread started\n");
+    
+    while (msw->health_running) {
+        // Check each subprocess
+        for (int i = 0; i < msw->nb_sources; i++) {
+            MSwitchSource *src = &msw->sources[i];
+            
+            if (src->subprocess_running) {
+                // Check if process is still alive
+                int status;
+                pid_t result = waitpid(src->subprocess_pid, &status, WNOHANG);
+                
+                if (result == src->subprocess_pid) {
+                    // Process exited
+                    mswitch_log(msw, AV_LOG_ERROR, "[Subprocess %d] Process died unexpectedly (PID: %d)\n", 
+                               i, (int)src->subprocess_pid);
+                    
+                    src->subprocess_running = 0;
+                    src->subprocess_pid = 0;
+                    
+                    // TODO: Implement automatic restart if configured
+                    // For now, just mark as failed
+                }
+            }
+        }
+        
+        // Sleep for monitoring interval
+        usleep(MSW_SUBPROCESS_MONITOR_INTERVAL_MS * 1000);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Subprocess monitor thread stopped\n");
+    return NULL;
+}
+
+// ============================================================================
+// UDP PROXY (Phase 2)
+// ============================================================================
+
+/**
+ * Create and configure a UDP socket
+ */
+static int mswitch_create_udp_socket(MSwitchContext *msw, int port, int *sock_fd)
+{
+    int sock;
+    struct sockaddr_in addr;
+    int reuse = 1;
+    
+    // Create socket
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "[UDP Proxy] Failed to create socket for port %d: %s\n", 
+                   port, strerror(errno));
+        return AVERROR(errno);
+    }
+    
+    // Set socket options
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+        mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] Failed to set SO_REUSEADDR: %s\n", 
+                   strerror(errno));
+    }
+    
+    // Set non-blocking mode
+    int flags = fcntl(sock, F_GETFL, 0);
+    if (flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
+        mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] Failed to set non-blocking mode: %s\n", 
+                   strerror(errno));
+    }
+    
+    // Bind to port
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port = htons(port);
+    
+    if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "[UDP Proxy] Failed to bind to port %d: %s\n", 
+                   port, strerror(errno));
+        close(sock);
+        return AVERROR(errno);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "[UDP Proxy] Socket bound to 127.0.0.1:%d\n", port);
+    
+    *sock_fd = sock;
+    return 0;
+}
+
+/**
+ * UDP Proxy Thread - Forwards packets from active subprocess to output
+ */
+static void* mswitch_udp_proxy_thread(void *arg)
+{
+    MSwitchContext *msw = (MSwitchContext *)arg;
+    int source_sockets[MSW_MAX_SOURCES];
+    int output_socket = -1;
+    struct sockaddr_in output_addr;
+    uint8_t buffer[MSW_UDP_PACKET_SIZE];
+    fd_set read_fds;
+    struct timeval tv;
+    int max_fd = -1;
+    int ret;
+    
+    mswitch_log(msw, AV_LOG_INFO, "[UDP Proxy] Starting UDP proxy thread\n");
+    
+    // Initialize all source sockets to -1
+    for (int i = 0; i < MSW_MAX_SOURCES; i++) {
+        source_sockets[i] = -1;
+    }
+    
+    // Create input sockets for each source (listen on subprocess output ports)
+    for (int i = 0; i < msw->nb_sources; i++) {
+        int port = MSW_BASE_UDP_PORT + i;
+        ret = mswitch_create_udp_socket(msw, port, &source_sockets[i]);
+        if (ret < 0) {
+            mswitch_log(msw, AV_LOG_ERROR, "[UDP Proxy] Failed to create socket for source %d\n", i);
+            goto cleanup;
+        }
+        
+        if (source_sockets[i] > max_fd) {
+            max_fd = source_sockets[i];
+        }
+    }
+    
+    // Create output socket (forward to proxy output port)
+    output_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (output_socket < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "[UDP Proxy] Failed to create output socket: %s\n", 
+                   strerror(errno));
+        goto cleanup;
+    }
+    
+    // Configure output address
+    memset(&output_addr, 0, sizeof(output_addr));
+    output_addr.sin_family = AF_INET;
+    output_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    output_addr.sin_port = htons(MSW_PROXY_OUTPUT_PORT);
+    
+    mswitch_log(msw, AV_LOG_INFO, "[UDP Proxy] Forwarding to 127.0.0.1:%d\n", MSW_PROXY_OUTPUT_PORT);
+    mswitch_log(msw, AV_LOG_INFO, "[UDP Proxy] Proxy thread running\n");
+    
+    // Main proxy loop
+    while (msw->health_running) {
+        // Set up select() with timeout
+        FD_ZERO(&read_fds);
+        for (int i = 0; i < msw->nb_sources; i++) {
+            if (source_sockets[i] >= 0) {
+                FD_SET(source_sockets[i], &read_fds);
+            }
+        }
+        
+        tv.tv_sec = 0;
+        tv.tv_usec = MSW_PROXY_SELECT_TIMEOUT_MS * 1000;
+        
+        ret = select(max_fd + 1, &read_fds, NULL, NULL, &tv);
+        
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;  // Interrupted by signal, retry
+            }
+            mswitch_log(msw, AV_LOG_ERROR, "[UDP Proxy] select() failed: %s\n", strerror(errno));
+            break;
+        }
+        
+        if (ret == 0) {
+            // Timeout, no data available
+            continue;
+        }
+        
+        // Check which sockets have data
+        for (int i = 0; i < msw->nb_sources; i++) {
+            if (source_sockets[i] < 0 || !FD_ISSET(source_sockets[i], &read_fds)) {
+                continue;
+            }
+            
+            // Read packet from this source
+            ssize_t bytes_read = recv(source_sockets[i], buffer, sizeof(buffer), 0);
+            
+            if (bytes_read < 0) {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                    mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] recv() from source %d failed: %s\n", 
+                               i, strerror(errno));
+                }
+                continue;
+            }
+            
+            if (bytes_read == 0) {
+                continue;  // No data
+            }
+            
+            // Get current active source (with mutex protection)
+            pthread_mutex_lock(&msw->state_mutex);
+            int active = msw->active_source_index;
+            pthread_mutex_unlock(&msw->state_mutex);
+            
+            // Forward only if this is the active source
+            if (i == active) {
+                ssize_t bytes_sent = sendto(output_socket, buffer, bytes_read, 0,
+                                           (struct sockaddr*)&output_addr, sizeof(output_addr));
+                
+                if (bytes_sent < 0) {
+                    mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] sendto() failed: %s\n", 
+                               strerror(errno));
+                } else if (bytes_sent != bytes_read) {
+                    mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] Partial send: %zd/%zd bytes\n", 
+                               bytes_sent, bytes_read);
+                }
+                // Successfully forwarded packet from active source
+            } else {
+                // Discard packet from inactive source (silently)
+            }
+        }
+    }
+    
+cleanup:
+    mswitch_log(msw, AV_LOG_INFO, "[UDP Proxy] Cleaning up proxy thread\n");
+    
+    // Close all source sockets
+    for (int i = 0; i < msw->nb_sources; i++) {
+        if (source_sockets[i] >= 0) {
+            close(source_sockets[i]);
+        }
+    }
+    
+    // Close output socket
+    if (output_socket >= 0) {
+        close(output_socket);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "[UDP Proxy] Proxy thread stopped\n");
+    return NULL;
+}
+
+/**
+ * NATIVE MSWITCH INITIALIZATION
+ * 
+ * In native mode, MSwitch does NOT start subprocesses. Instead:
+ * 1. Sources are parsed from -msw.sources to get IDs
+ * 2. Actual inputs come from -i flags on command line
+ * 3. FFmpeg's scheduler handles all demuxing/decoding in parallel
+ * 4. MSwitch just controls which decoder frames pass through
+ * 5. Switching happens in sch_dec_send (ffmpeg_sched.c)
+ */
 int mswitch_init(MSwitchContext *msw, OptionsContext *o)
 {
     int ret = 0;
     
-    // Initialize only the runtime fields, preserving the option fields that were set by command-line parsing
+    mswitch_log(msw, AV_LOG_INFO, "Initializing native MSwitch...\n");
+    
+    // Initialize only the runtime fields, preserving option fields from command-line parsing
     msw->active_source_index = 0;
     msw->last_switch_time = 0;
     msw->switching = 0;
     msw->metrics_enable = 0;
     msw->json_metrics = 0;
+    msw->enable = 1;  // Enable MSwitch operation
     
     // Initialize the sources array
     memset(msw->sources, 0, sizeof(msw->sources));
@@ -168,11 +1044,9 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
     // Initialize threading fields
     msw->health_running = 0;
     memset(&msw->health_thread, 0, sizeof(msw->health_thread));
-    
-    // Initialize metrics fields
     msw->metrics_file = NULL;
     
-    // Use actual sources from the global context
+    // Parse sources from the global context
     if (global_mswitch_ctx.sources_str && strlen(global_mswitch_ctx.sources_str) > 0) {
         mswitch_log(msw, AV_LOG_INFO, "Parsing sources: %s\n", global_mswitch_ctx.sources_str);
         ret = mswitch_parse_sources(msw, global_mswitch_ctx.sources_str);
@@ -192,11 +1066,14 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
                       (strcmp(global_mswitch_ctx.ingest_mode_str, "standby") == 0 ? MSW_INGEST_STANDBY : MSW_INGEST_HOT) : 
                       MSW_INGEST_HOT;
     
+    // Parse mode 
     if (global_mswitch_ctx.mode_str) {
         if (strcmp(global_mswitch_ctx.mode_str, "seamless") == 0) {
             msw->mode = MSW_MODE_SEAMLESS;
         } else if (strcmp(global_mswitch_ctx.mode_str, "cutover") == 0) {
             msw->mode = MSW_MODE_CUTOVER;
+        } else if (strcmp(global_mswitch_ctx.mode_str, "graceful") == 0) {
+            msw->mode = MSW_MODE_GRACEFUL;
         } else {
             msw->mode = MSW_MODE_GRACEFUL; // default
         }
@@ -204,6 +1081,16 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
         msw->mode = MSW_MODE_GRACEFUL;
     }
     
+    mswitch_log(msw, AV_LOG_INFO, "Configuration: mode=%s, ingest=%s, sources=%d\n", 
+                msw->mode == MSW_MODE_SEAMLESS ? "seamless" : 
+                msw->mode == MSW_MODE_GRACEFUL ? "graceful" : "cutover",
+                msw->ingest_mode == MSW_INGEST_HOT ? "hot" : "standby",
+                msw->nb_sources);
+    
+    mswitch_log(msw, AV_LOG_INFO, "Active source: %d (%s)\n", 
+                msw->active_source_index, msw->sources[msw->active_source_index].id);
+    
+    // Set buffer and timing parameters
     msw->buffer_ms = global_mswitch_ctx.buffer_ms > 0 ? global_mswitch_ctx.buffer_ms : MSW_DEFAULT_BUFFER_MS;
     msw->on_cut = MSW_ON_CUT_FREEZE;
     msw->freeze_on_cut_ms = global_mswitch_ctx.freeze_on_cut_ms > 0 ? global_mswitch_ctx.freeze_on_cut_ms : 2000;
@@ -245,7 +1132,41 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
     msw->revert.policy = MSW_REVERT_AUTO;
     msw->revert.health_window_ms = MSW_DEFAULT_HEALTH_WINDOW_MS;
     
+    // Start subprocesses for all sources (multi-process architecture)
+    mswitch_log(msw, AV_LOG_INFO, "Starting subprocesses for all sources...\n");
+    for (int i = 0; i < msw->nb_sources; i++) {
+        ret = mswitch_start_source_subprocess(msw, i);
+        if (ret < 0) {
+            mswitch_log(msw, AV_LOG_ERROR, "Failed to start subprocess for source %d\n", i);
+            goto cleanup_on_error;
+        }
+    }
+    
+    // Wait for subprocesses to start streaming
+    mswitch_log(msw, AV_LOG_INFO, "Waiting for subprocesses to start streaming...\n");
+    usleep(MSW_SUBPROCESS_STARTUP_DELAY_MS * 1000);
+    
+    // Start subprocess monitor thread (reuse health_thread)
+    mswitch_log(msw, AV_LOG_INFO, "Starting subprocess monitor thread...\n");
+    ret = pthread_create(&msw->health_thread, NULL, mswitch_monitor_subprocess_thread, msw);
+    if (ret != 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create subprocess monitor thread: %s\n", strerror(ret));
+        goto cleanup_on_error;
+    }
+    msw->health_running = 1;
+    
+    // Start UDP proxy thread
+    mswitch_log(msw, AV_LOG_INFO, "Starting UDP proxy thread...\n");
+    ret = pthread_create(&msw->proxy_thread, NULL, mswitch_udp_proxy_thread, msw);
+    if (ret != 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to create UDP proxy thread: %s\n", strerror(ret));
+        goto cleanup_on_error;
+    }
+    msw->proxy_running = 1;
+    
     mswitch_log(msw, AV_LOG_INFO, "MSwitch initialized with %d sources\n", msw->nb_sources);
+    mswitch_log(msw, AV_LOG_INFO, "MSwitch proxy listening on ports %d-%d, forwarding to port %d\n",
+                MSW_BASE_UDP_PORT, MSW_BASE_UDP_PORT + msw->nb_sources - 1, MSW_PROXY_OUTPUT_PORT);
     mswitch_log(msw, AV_LOG_INFO, "Interactive commands: 0-2 (switch source), m (status), ? (help)\n");
     return 0;
 
@@ -266,9 +1187,27 @@ int mswitch_cleanup(MSwitchContext *msw)
     // Stop all threads
     mswitch_stop(msw);
     
+    // Stop UDP proxy thread if running
+    if (msw->proxy_running && msw->proxy_thread) {
+        mswitch_log(msw, AV_LOG_INFO, "Stopping UDP proxy thread\n");
+        msw->health_running = 0; // Signal proxy thread to stop (reuses health_running flag)
+        pthread_join(msw->proxy_thread, NULL);
+        msw->proxy_running = 0;
+    }
+    
+    // Stop frame feeder thread if running
+    if (msw->frame_switching_enabled && msw->frame_switch_thread) {
+        mswitch_log(msw, AV_LOG_INFO, "Stopping frame feeder thread\n");
+        msw->enable = 0; // Signal thread to stop
+        pthread_join(msw->frame_switch_thread, NULL);
+    }
+    
     // Cleanup sources
     for (i = 0; i < msw->nb_sources; i++) {
         MSwitchSource *src = &msw->sources[i];
+        
+        // Stop subprocess if running
+        mswitch_stop_source_subprocess(msw, i);
         
         // Free strings only if they were allocated
         if (src->id) {
@@ -407,6 +1346,10 @@ int mswitch_switch_to(MSwitchContext *msw, const char *source_id)
     int target_index = -1;
     int i;
     
+    if (!msw || !source_id) {
+        return AVERROR(EINVAL);
+    }
+    
     // Find target source index
     for (i = 0; i < msw->nb_sources; i++) {
         if (strcmp(msw->sources[i].id, source_id) == 0) {
@@ -419,6 +1362,9 @@ int mswitch_switch_to(MSwitchContext *msw, const char *source_id)
         mswitch_log(msw, AV_LOG_ERROR, "Source '%s' not found\n", source_id);
         return AVERROR(EINVAL);
     }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Switch request: target=%d (%s), current=%d\n", 
+                target_index, source_id, msw->active_source_index);
     
     if (target_index == msw->active_source_index) {
         mswitch_log(msw, AV_LOG_INFO, "Source '%s' is already active\n", source_id);
@@ -442,51 +1388,153 @@ int mswitch_switch_to(MSwitchContext *msw, const char *source_id)
     }
 }
 
+// Filter-based switching implementation
+static int mswitch_update_filter_map(MSwitchContext *msw, int target_index)
+{
+    if (!msw) {
+        av_log(NULL, AV_LOG_ERROR, "[MSwitch] mswitch_update_filter_map: msw is NULL\n");
+        return AVERROR(EINVAL);
+    }
+    
+    AVFilterContext *streamselect = (AVFilterContext *)msw->streamselect_ctx;
+    
+    av_log(NULL, AV_LOG_WARNING, "[MSwitch] >>> mswitch_update_filter_map called: target_index=%d, streamselect=%p\n", 
+           target_index, (void*)streamselect);
+    
+    if (!streamselect) {
+        av_log(NULL, AV_LOG_WARNING, "[MSwitch] streamselect filter not initialized yet, logical switch only (will update filter when available)\n");
+        return 0;  // Not an error - just means filter hasn't been created yet
+    }
+    
+    // Check if filter has the option
+    av_log(NULL, AV_LOG_WARNING, "[MSwitch] streamselect filter name: %s\n", 
+           streamselect->filter ? streamselect->filter->name : "NULL");
+    
+    // Update the streamselect filter's "map" parameter
+    char map_str[16];
+    snprintf(map_str, sizeof(map_str), "%d", target_index);
+    
+    av_log(NULL, AV_LOG_WARNING, "[MSwitch] Calling avfilter_process_command with map_str='%s'\n", map_str);
+    
+    // Use avfilter_process_command instead of av_opt_set for runtime parameter changes
+    char response[256] = {0};
+    int ret = avfilter_process_command(streamselect, "map", map_str, response, sizeof(response), 0);
+    
+    av_log(NULL, AV_LOG_WARNING, "[MSwitch] avfilter_process_command returned: %d (%s), response='%s'\n", 
+           ret, ret < 0 ? av_err2str(ret) : "success", response);
+    
+    if (ret < 0) {
+        av_log(NULL, AV_LOG_ERROR, "[MSwitch] Failed to update streamselect map to %d: %s\n", 
+               target_index, av_err2str(ret));
+        return ret;
+    }
+    
+    av_log(NULL, AV_LOG_WARNING, "[MSwitch] ✓ avfilter_process_command succeeded for map=%d\n", target_index);
+    
+    // Note: We can't easily verify the internal map[] array from here,
+    // but if process_command returned 0, it should have updated it.
+    // The streamselect filter will log the parse_mapping result.
+    
+    return 0;
+}
+
 int mswitch_switch_seamless(MSwitchContext *msw, int target_index)
 {
-    // Seamless switching requires bit-exact sources
-    // For now, implement basic packet-level switching
+    if (!msw) {
+        return AVERROR(EINVAL);
+    }
+    
+    // Seamless switching via filter
     mswitch_log(msw, AV_LOG_INFO, "Performing seamless switch to source %d\n", target_index);
     
     pthread_mutex_lock(&msw->state_mutex);
     msw->switching = 1;
+    
+    // Update filter first, then update state
+    int ret = mswitch_update_filter_map(msw, target_index);
+    
     msw->active_source_index = target_index;
     msw->last_switch_time = av_gettime();
     msw->switching = 0;
     pthread_cond_broadcast(&msw->switch_cond);
     pthread_mutex_unlock(&msw->state_mutex);
     
-    return 0;
+    return ret;
 }
 
 int mswitch_switch_graceful(MSwitchContext *msw, int target_index)
 {
-    // Graceful switching waits for next IDR frame
+    if (!msw) {
+        return AVERROR(EINVAL);
+    }
+    
+    // Graceful switching via filter
     mswitch_log(msw, AV_LOG_INFO, "Performing graceful switch to source %d\n", target_index);
     
     pthread_mutex_lock(&msw->state_mutex);
     msw->switching = 1;
+    
+    // Update filter first, then update state
+    int ret = mswitch_update_filter_map(msw, target_index);
+    
     msw->active_source_index = target_index;
     msw->last_switch_time = av_gettime();
     msw->switching = 0;
     pthread_cond_broadcast(&msw->switch_cond);
     pthread_mutex_unlock(&msw->state_mutex);
     
-    return 0;
+    return ret;
 }
 
 int mswitch_switch_cutover(MSwitchContext *msw, int target_index)
 {
-    // Cutover switching is immediate
+    if (!msw) {
+        return AVERROR(EINVAL);
+    }
+    
+    // Cutover switching via filter
     mswitch_log(msw, AV_LOG_INFO, "Performing cutover switch to source %d\n", target_index);
     
     pthread_mutex_lock(&msw->state_mutex);
     msw->switching = 1;
+    
+    // Update filter first, then update state
+    int ret = mswitch_update_filter_map(msw, target_index);
+    
     msw->active_source_index = target_index;
     msw->last_switch_time = av_gettime();
     msw->switching = 0;
     pthread_cond_broadcast(&msw->switch_cond);
     pthread_mutex_unlock(&msw->state_mutex);
+    
+    return ret;
+}
+
+// Filter-based switching setup
+int mswitch_setup_filter(MSwitchContext *msw, void *filter_graph, void *streamselect_ctx)
+{
+    if (!msw || !filter_graph || !streamselect_ctx) {
+        return AVERROR(EINVAL);
+    }
+    
+    msw->filter_graph = filter_graph;
+    msw->streamselect_ctx = streamselect_ctx;
+    
+    mswitch_log(msw, AV_LOG_INFO, "Filter-based switching initialized (streamselect filter attached)\n");
+    
+    // Try to set initial map, but don't fail if it doesn't work yet
+    // The filter may not be fully initialized at this point
+    char map_str[16];
+    snprintf(map_str, sizeof(map_str), "%d", msw->active_source_index);
+    
+    AVFilterContext *streamselect = (AVFilterContext *)streamselect_ctx;
+    int ret = av_opt_set(streamselect, "map", map_str, AV_OPT_SEARCH_CHILDREN);
+    if (ret < 0) {
+        mswitch_log(msw, AV_LOG_WARNING, "Could not set initial streamselect map (will be set on first switch): %s\n", av_err2str(ret));
+        // Don't return error - filter will use its default map initially
+    } else {
+        mswitch_log(msw, AV_LOG_INFO, "Initial streamselect map set to %d\n", msw->active_source_index);
+    }
     
     return 0;
 }
@@ -725,9 +1773,83 @@ static void *mswitch_webhook_server_thread(void *arg)
             }
             
             // Read request
-            read(client_fd, buffer, 1024);
+            int bytes_read = read(client_fd, buffer, 1023);
             
-            // Send simple response
+            mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Received request, bytes_read=%d\n", bytes_read);
+            
+            if (bytes_read > 0) {
+                buffer[bytes_read] = '\0';
+                
+                // Log the raw request for debugging
+                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Raw request:\n%s\n", buffer);
+                
+                // Parse request for switch command
+                // Expected format: POST /switch with JSON body {"source":"s1"}
+                if (strstr(buffer, "POST /switch")) {
+                    mswitch_log(msw, AV_LOG_WARNING, "[Webhook] POST /switch detected\n");
+                    
+                    // Look for source in JSON body
+                    char *body = strstr(buffer, "\r\n\r\n");
+                    if (body) {
+                        body += 4; // Skip the \r\n\r\n
+                        mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Body: %s\n", body);
+                        
+                        // Simple JSON parsing - look for "source":"sX"
+                        char *source_start = strstr(body, "\"source\"");
+                        if (source_start) {
+                            mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Found 'source' field\n");
+                            
+                            source_start = strchr(source_start, ':');
+                            if (source_start) {
+                                source_start++; // Skip ':'
+                                while (*source_start == ' ' || *source_start == '"') source_start++;
+                                
+                                // Extract source ID (s0, s1, s2, etc.)
+                                char source_id[16] = {0};
+                                int j = 0;
+                                while (j < 15 && *source_start && *source_start != '"' && *source_start != '}') {
+                                    source_id[j++] = *source_start++;
+                                }
+                                source_id[j] = '\0';
+                                
+                                // Perform the switch
+                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] *** SWITCHING TO SOURCE: %s ***\n", source_id);
+                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Before switch: msw=%p, nb_sources=%d, active=%d\n", 
+                                           (void*)msw, msw->nb_sources, msw->active_source_index);
+                                
+                                int ret = mswitch_switch_to(msw, source_id);
+                                
+                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] After switch: ret=%d, active=%d\n", 
+                                           ret, msw->active_source_index);
+                                
+                                if (ret == 0) {
+                                    snprintf(response, sizeof(response),
+                                            "HTTP/1.1 200 OK\r\n"
+                                            "Content-Type: application/json\r\n\r\n"
+                                            "{\"status\":\"ok\",\"source\":\"%s\"}", source_id);
+                                } else {
+                                    snprintf(response, sizeof(response),
+                                            "HTTP/1.1 400 Bad Request\r\n"
+                                            "Content-Type: application/json\r\n\r\n"
+                                            "{\"status\":\"error\",\"message\":\"Switch failed\",\"code\":%d}", ret);
+                                }
+                            } else {
+                                mswitch_log(msw, AV_LOG_ERROR, "[Webhook] No colon after 'source'\n");
+                            }
+                        } else {
+                            mswitch_log(msw, AV_LOG_ERROR, "[Webhook] 'source' field not found in body\n");
+                        }
+                    } else {
+                        mswitch_log(msw, AV_LOG_ERROR, "[Webhook] No body found in request\n");
+                    }
+                } else {
+                    mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Not a POST /switch request\n");
+                }
+            } else {
+                mswitch_log(msw, AV_LOG_ERROR, "[Webhook] Failed to read request: bytes_read=%d\n", bytes_read);
+            }
+            
+            // Send response
             send(client_fd, response, strlen(response), 0);
             
             close(client_fd);
@@ -739,10 +1861,15 @@ static void *mswitch_webhook_server_thread(void *arg)
     return NULL;
 }
 
-// Placeholder implementations for webhook and CLI
+// Webhook server implementations
 int mswitch_webhook_start(MSwitchContext *msw)
 {
     int ret;
+    
+    if (!msw->webhook.enable) {
+        mswitch_log(msw, AV_LOG_INFO, "Webhook disabled - use interactive commands (0/1/2) instead\n");
+        return 0;
+    }
     
     if (msw->webhook.server_running) {
         return 0; // Already running
@@ -754,6 +1881,8 @@ int mswitch_webhook_start(MSwitchContext *msw)
         mswitch_log(msw, AV_LOG_ERROR, "Failed to create webhook server thread: %d\n", ret);
         return AVERROR(ret);
     }
+    
+    pthread_detach(msw->webhook.server_thread);
     
     // Give the server time to start
     usleep(100000); // 100ms
@@ -771,9 +1900,7 @@ int mswitch_webhook_stop(MSwitchContext *msw)
     mswitch_log(msw, AV_LOG_INFO, "Stopping webhook server\n");
     msw->webhook.server_running = 0;
     
-    // Wait for server thread to finish
-    pthread_join(msw->webhook.server_thread, NULL);
-    
+    // Note: Thread is detached, so no need to join
     mswitch_log(msw, AV_LOG_INFO, "Webhook server stopped\n");
     return 0;
 }

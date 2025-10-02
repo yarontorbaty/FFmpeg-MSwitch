@@ -314,6 +314,7 @@ extern const FFInputFormat  ff_mpsub_demuxer;
 extern const FFInputFormat  ff_msf_demuxer;
 extern const FFInputFormat  ff_msnwc_tcp_demuxer;
 extern const FFInputFormat  ff_msp_demuxer;
+extern const FFInputFormat  ff_mswitch_demuxer;
 extern const FFInputFormat  ff_mtaf_demuxer;
 extern const FFInputFormat  ff_mtv_demuxer;
 extern const FFInputFormat  ff_musx_demuxer;

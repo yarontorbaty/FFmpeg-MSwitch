@@ -235,7 +235,8 @@ static int parse_mapping(AVFilterContext *ctx, const char *map)
     s->map = new_map;
     s->nb_map = new_nb_map;
 
-    av_log(ctx, AV_LOG_VERBOSE, "%d map set\n", s->nb_map);
+    av_log(ctx, AV_LOG_WARNING, "[StreamSelect] parse_mapping complete: nb_map=%d, map[0]=%d\n", 
+           s->nb_map, s->nb_map > 0 ? s->map[0] : -1);
 
     return 0;
 }

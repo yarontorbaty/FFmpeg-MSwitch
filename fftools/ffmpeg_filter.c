@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include "ffmpeg.h"
+#include "ffmpeg_mswitch.h"
 #include "graph/graphprint.h"
 
 #include "libavfilter/avfilter.h"
@@ -42,6 +43,10 @@
 
 // FIXME private header, used for mid_pred()
 #include "libavcodec/mathops.h"
+
+// External MSwitch context and state (defined in ffmpeg_opt.c)
+extern int global_mswitch_enabled;
+extern MSwitchContext global_mswitch_ctx;
 
 typedef struct FilterGraphPriv {
     FilterGraph      fg;
@@ -1998,6 +2003,23 @@ static int configure_filtergraph(FilterGraph *fg, FilterGraphThread *fgt)
         avfilter_graph_set_auto_convert(fgt->graph, AVFILTER_AUTO_CONVERT_NONE);
     if ((ret = avfilter_graph_config(fgt->graph, NULL)) < 0)
         goto fail;
+
+    // MSwitch integration: Find and connect streamselect filter if MSwitch is enabled
+    if (global_mswitch_enabled > 0 && global_mswitch_ctx.nb_sources > 0) {
+        // Search for streamselect filter in the graph
+        for (unsigned int i = 0; i < fgt->graph->nb_filters; i++) {
+            AVFilterContext *filter = fgt->graph->filters[i];
+            if (filter && filter->filter && strcmp(filter->filter->name, "streamselect") == 0) {
+                av_log(fg, AV_LOG_INFO, "[MSwitch] Found streamselect filter, connecting to MSwitch\n");
+                ret = mswitch_setup_filter(&global_mswitch_ctx, fgt->graph, filter);
+                if (ret < 0) {
+                    av_log(fg, AV_LOG_ERROR, "[MSwitch] Failed to setup filter switching: %s\n", av_err2str(ret));
+                    goto fail;
+                }
+                break;
+            }
+        }
+    }
 
     fgp->is_meta = graph_is_meta(fgt->graph);
 
