@@ -80,6 +80,7 @@
 #include "cmdutils.h"
 #include "ffmpeg.h"
 #include "ffmpeg_sched.h"
+#include "ffmpeg_mswitch.h"
 #include "ffmpeg_utils.h"
 #include "graph/graphprint.h"
 
@@ -87,6 +88,10 @@ const char program_name[] = "ffmpeg";
 const int program_birth_year = 2000;
 
 FILE *vstats_file;
+
+/* Global Multi-Source Switch context */
+extern MSwitchContext global_mswitch_ctx;
+extern int global_mswitch_enabled;
 
 typedef struct BenchmarkTimeStamps {
     int64_t real_usec;
@@ -330,6 +335,12 @@ static void ffmpeg_cleanup(int ret)
     for (int i = 0; i < nb_decoders; i++)
         dec_free(&decoders[i]);
     av_freep(&decoders);
+
+    /* cleanup Multi-Source Switch if enabled */
+    if (global_mswitch_ctx.enable) {
+        mswitch_stop(&global_mswitch_ctx);
+        mswitch_cleanup(&global_mswitch_ctx);
+    }
 
     if (vstats_file) {
         if (fclose(vstats_file))
@@ -992,6 +1003,20 @@ int main(int argc, char **argv)
     ret = ffmpeg_parse_options(argc, argv, sch);
     if (ret < 0)
         goto finish;
+
+    /* initialize Multi-Source Switch (MSwitch) if enabled */
+    if (global_mswitch_enabled) {
+        ret = mswitch_init(&global_mswitch_ctx, NULL);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "Failed to initialize Multi-Source Switch\n");
+            goto finish;
+        }
+        ret = mswitch_start(&global_mswitch_ctx);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "Failed to start Multi-Source Switch\n");
+            goto finish;
+        }
+    }
 
     if (nb_output_files <= 0 && nb_input_files == 0) {
         show_usage();

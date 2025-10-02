@@ -257,6 +257,28 @@ typedef struct OptionsContext {
     SpecifierOptList enc_stats_pre_fmt;
     SpecifierOptList enc_stats_post_fmt;
     SpecifierOptList mux_stats_fmt;
+    
+    /* Multi-Source Switch (MSwitch) options */
+    int msw_enable;
+    char *msw_sources;
+    char *msw_opt_s0;
+    char *msw_opt_s1;
+    char *msw_opt_s2;
+    char *msw_ingest;
+    char *msw_mode;
+    int msw_buffer_ms;
+    int msw_freeze_on_cut;
+    char *msw_on_cut;
+    int msw_webhook_enable;
+    int msw_webhook_port;
+    char *msw_webhook_methods;
+    int msw_cli_enable;
+    int msw_auto_enable;
+    char *msw_auto_on;
+    char *msw_config;
+    char *msw_revert;
+    int msw_revert_health_window_ms;
+    int msw_force_layout;
 } OptionsContext;
 
 enum IFilterFlags {

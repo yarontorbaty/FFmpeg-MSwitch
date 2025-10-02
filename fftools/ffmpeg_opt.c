@@ -29,6 +29,7 @@
 
 #include "ffmpeg.h"
 #include "ffmpeg_sched.h"
+#include "ffmpeg_mswitch.h"
 #include "cmdutils.h"
 #include "opt_common.h"
 
@@ -52,6 +53,10 @@
 HWDevice *filter_hw_device;
 
 char *vstats_filename;
+
+/* Global Multi-Source Switch context */
+MSwitchContext global_mswitch_ctx;
+int global_mswitch_enabled = 0;
 
 float dts_delta_threshold   = 10;
 float dts_error_threshold   = 3600*30;
@@ -1420,6 +1425,8 @@ int ffmpeg_parse_options(int argc, char **argv, Scheduler *sch)
         goto fail;
     }
 
+    /* MSwitch initialization will be done in main() after parsing */
+
     /* open output files */
     ret = open_files(&octx.groups[GROUP_OUTFILE], "output", sch, of_open);
     if (ret < 0) {
@@ -2096,6 +2103,59 @@ const OptionDef options[] = {
         { .func_arg = opt_vsync },
         "set video sync method globally; deprecated, use -fps_mode", "" },
 #endif
+
+    /* Multi-Source Switch (MSwitch) options */
+    { "msw.enable",             OPT_TYPE_BOOL, OPT_EXPERT,
+        {              &global_mswitch_enabled },
+        "enable multi-source switch mode" },
+    { "msw.sources",            OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.sources_str },
+        "define multi-source inputs (s0=url1;s1=url2;s2=url3)", "sources" },
+    { "msw.ingest",             OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.ingest_mode },
+        "ingestion mode (standby|hot)", "mode" },
+    { "msw.mode",               OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.mode },
+        "failover mode (seamless|graceful|cutover)", "mode" },
+    { "msw.buffer_ms",          OPT_TYPE_INT, OPT_EXPERT,
+        {              &global_mswitch_ctx.buffer_ms },
+        "buffer duration in milliseconds", "ms" },
+    { "msw.freeze_on_cut",      OPT_TYPE_INT, OPT_EXPERT,
+        {              &global_mswitch_ctx.freeze_on_cut_ms },
+        "freeze duration on cutover in seconds", "seconds" },
+    { "msw.on_cut",             OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.on_cut },
+        "action on cutover (freeze|black)", "action" },
+    { "msw.webhook.enable",     OPT_TYPE_BOOL, OPT_EXPERT,
+        {              &global_mswitch_ctx.webhook.enable },
+        "enable webhook control interface" },
+    { "msw.webhook.port",       OPT_TYPE_INT, OPT_EXPERT,
+        {              &global_mswitch_ctx.webhook.port },
+        "webhook server port", "port" },
+    { "msw.webhook.methods",    OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.webhook.methods },
+        "allowed webhook methods", "methods" },
+    { "msw.cli.enable",         OPT_TYPE_BOOL, OPT_EXPERT,
+        {              &global_mswitch_ctx.cli.enable },
+        "enable interactive CLI control" },
+    { "msw.auto.enable",        OPT_TYPE_BOOL, OPT_EXPERT,
+        {              &global_mswitch_ctx.auto_failover.enable },
+        "enable automatic failover" },
+    { "msw.auto.on",            OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.auto_failover.thresholds },
+        "automatic failover thresholds", "thresholds" },
+    { "msw.config",             OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.config_file },
+        "JSON configuration file", "file" },
+    { "msw.revert",             OPT_TYPE_STRING, OPT_EXPERT,
+        {              &global_mswitch_ctx.revert.policy },
+        "revert policy (auto|manual)", "policy" },
+    { "msw.revert.health_window_ms", OPT_TYPE_INT, OPT_EXPERT,
+        {              &global_mswitch_ctx.revert.health_window_ms },
+        "health window for revert in milliseconds", "ms" },
+    { "msw.force_layout",       OPT_TYPE_BOOL, OPT_EXPERT,
+        {              &global_mswitch_ctx.force_layout },
+        "force layout compatibility for mismatched sources" },
 
     { NULL, },
 };
