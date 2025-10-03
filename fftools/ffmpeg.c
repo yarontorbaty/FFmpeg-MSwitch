@@ -92,6 +92,7 @@ FILE *vstats_file;
 /* Global Multi-Source Switch context */
 extern MSwitchContext global_mswitch_ctx;
 extern int global_mswitch_enabled;
+extern AVFilterContext *global_mswitch_filter_ctx;  // Reference to mswitch filter for CLI
 
 typedef struct BenchmarkTimeStamps {
     int64_t real_usec;
@@ -870,41 +871,62 @@ static int check_keyboard_interaction(int64_t cur_time)
                         "h      dump packets/hex press to cycle through the 3 states\n"
                         "q      quit\n"
                         "s      Show QP histogram\n"
-                        "0-2    MSwitch: switch to source 0, 1, or 2\n"
+                        "0-9    MSwitch: switch to source 0-9\n"
                         "m      MSwitch: show status\n"
         );
     }
     
-    // MSwitch commands
-    if (global_mswitch_enabled) {
-        if (key >= '0' && key <= '2') {
+    // MSwitch commands - send directly to filter
+    if (global_mswitch_filter_ctx && key >= '0' && key <= '9') {
+        int source_index = key - '0';
+        char map_str[16];
+        char response[256];
+        
+        snprintf(map_str, sizeof(map_str), "%d", source_index);
+        
+        // Send command directly to mswitch filter
+        int ret = avfilter_process_command(global_mswitch_filter_ctx, "map", map_str, 
+                                           response, sizeof(response), 0);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "[MSwitch CLI] Failed to switch to source %d: %s\n", 
+                   source_index, av_err2str(ret));
+        } else {
+            av_log(NULL, AV_LOG_INFO, "[MSwitch CLI] ⚡ Switched to source %d\n", source_index);
+        }
+    }
+    // Legacy MSwitch context commands (fallback)
+    else if (global_mswitch_enabled && !global_mswitch_filter_ctx) {
+        if (key >= '0' && key <= '9') {
             int source_index = key - '0';
             if (source_index < global_mswitch_ctx.nb_sources) {
-                // Use proper MSwitch switching function instead of direct assignment
                 char source_id[8];
                 snprintf(source_id, sizeof(source_id), "s%d", source_index);
                 int ret = mswitch_switch_to(&global_mswitch_ctx, source_id);
                 if (ret < 0) {
                     av_log(NULL, AV_LOG_ERROR, "[MSwitch] Failed to switch to source %d\n", source_index);
+                } else {
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch] Switched to source %d (%s)\n", source_index, source_id);
                 }
             } else {
                 av_log(NULL, AV_LOG_WARNING, "[MSwitch] Source %d not available (only %d sources)\n", 
                        source_index, global_mswitch_ctx.nb_sources);
             }
         }
-        if (key == 'm') {
-            if (global_mswitch_ctx.nb_sources > 0 && global_mswitch_ctx.active_source_index < global_mswitch_ctx.nb_sources) {
-                const char *active_id = global_mswitch_ctx.sources[global_mswitch_ctx.active_source_index].id;
-                av_log(NULL, AV_LOG_INFO, "[MSwitch] Status: Active source = %d (%s), Total sources = %d\n",
-                       global_mswitch_ctx.active_source_index, 
-                       active_id ? active_id : "unknown",
-                       global_mswitch_ctx.nb_sources);
-            } else {
-                av_log(NULL, AV_LOG_INFO, "[MSwitch] Status: No active source, Total sources = %d\n",
-                       global_mswitch_ctx.nb_sources);
-            }
+    }
+    
+    // Status command
+    if (key == 'm' && (global_mswitch_filter_ctx || global_mswitch_enabled)) {
+        if (global_mswitch_ctx.nb_sources > 0 && global_mswitch_ctx.active_source_index < global_mswitch_ctx.nb_sources) {
+            const char *active_id = global_mswitch_ctx.sources[global_mswitch_ctx.active_source_index].id;
+            av_log(NULL, AV_LOG_INFO, "[MSwitch] Status: Active source = %d (%s), Total sources = %d\n",
+                   global_mswitch_ctx.active_source_index, 
+                   active_id ? active_id : "unknown",
+                   global_mswitch_ctx.nb_sources);
+        } else {
+            av_log(NULL, AV_LOG_INFO, "[MSwitch] Status: Filter control active\n");
         }
     }
+    
     return 0;
 }
 

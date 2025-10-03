@@ -48,6 +48,9 @@
 extern int global_mswitch_enabled;
 extern MSwitchContext global_mswitch_ctx;
 
+// Global reference to mswitch filter for CLI control
+AVFilterContext *global_mswitch_filter_ctx = NULL;
+
 typedef struct FilterGraphPriv {
     FilterGraph      fg;
 
@@ -2004,17 +2007,24 @@ static int configure_filtergraph(FilterGraph *fg, FilterGraphThread *fgt)
     if ((ret = avfilter_graph_config(fgt->graph, NULL)) < 0)
         goto fail;
 
-    // MSwitch integration: Find and connect streamselect filter if MSwitch is enabled
-    if (global_mswitch_enabled > 0 && global_mswitch_ctx.nb_sources > 0) {
-        // Search for streamselect filter in the graph
-        for (unsigned int i = 0; i < fgt->graph->nb_filters; i++) {
-            AVFilterContext *filter = fgt->graph->filters[i];
-            if (filter && filter->filter && strcmp(filter->filter->name, "streamselect") == 0) {
+    // MSwitch integration: Find mswitch or streamselect filter for CLI control
+    // Search for mswitch filter first (preferred), then streamselect (legacy)
+    for (unsigned int i = 0; i < fgt->graph->nb_filters; i++) {
+        AVFilterContext *filter = fgt->graph->filters[i];
+        if (filter && filter->filter) {
+            if (strcmp(filter->filter->name, "mswitch") == 0) {
+                av_log(fg, AV_LOG_INFO, "[MSwitch] Found mswitch filter, storing for CLI control\n");
+                global_mswitch_filter_ctx = filter;
+                break;
+            } else if (strcmp(filter->filter->name, "streamselect") == 0) {
                 av_log(fg, AV_LOG_INFO, "[MSwitch] Found streamselect filter, connecting to MSwitch\n");
-                ret = mswitch_setup_filter(&global_mswitch_ctx, fgt->graph, filter);
-                if (ret < 0) {
-                    av_log(fg, AV_LOG_ERROR, "[MSwitch] Failed to setup filter switching: %s\n", av_err2str(ret));
-                    goto fail;
+                global_mswitch_filter_ctx = filter;
+                if (global_mswitch_enabled > 0 && global_mswitch_ctx.nb_sources > 0) {
+                    ret = mswitch_setup_filter(&global_mswitch_ctx, fgt->graph, filter);
+                    if (ret < 0) {
+                        av_log(fg, AV_LOG_ERROR, "[MSwitch] Failed to setup filter switching: %s\n", av_err2str(ret));
+                        goto fail;
+                    }
                 }
                 break;
             }

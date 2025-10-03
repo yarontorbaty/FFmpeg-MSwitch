@@ -2292,8 +2292,8 @@ int sch_dec_send(Scheduler *sch, unsigned dec_idx,
     av_assert0(out_idx < dec->nb_outputs);
     o = &dec->outputs[out_idx];
 
-    // NOTE: MSwitch frame switching is now handled by streamselect filter in filter graph
-    // No need for manual frame filtering here anymore
+    // NOTE: MSwitch switching is now handled by the mswitch filter via avfilter_process_command
+    // CLI commands send commands directly to the filter, no scheduler-level filtering needed
 
     for (unsigned i = 0; i < o->nb_dst; i++) {
         uint8_t *finished = &o->dst_finished[i];
