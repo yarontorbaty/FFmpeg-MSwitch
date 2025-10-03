@@ -2013,8 +2013,15 @@ static int configure_filtergraph(FilterGraph *fg, FilterGraphThread *fgt)
         AVFilterContext *filter = fgt->graph->filters[i];
         if (filter && filter->filter) {
             if (strcmp(filter->filter->name, "mswitch") == 0) {
-                av_log(fg, AV_LOG_INFO, "[MSwitch] Found mswitch filter, storing for CLI control\n");
+                av_log(fg, AV_LOG_INFO, "[MSwitch] Found mswitch filter, connecting to MSwitch\n");
                 global_mswitch_filter_ctx = filter;
+                if (global_mswitch_enabled > 0 && global_mswitch_ctx.nb_sources > 0) {
+                    ret = mswitch_setup_filter(&global_mswitch_ctx, fgt->graph, filter);
+                    if (ret < 0) {
+                        av_log(fg, AV_LOG_ERROR, "[MSwitch] Failed to setup filter switching: %s\n", av_err2str(ret));
+                        goto fail;
+                    }
+                }
                 break;
             } else if (strcmp(filter->filter->name, "streamselect") == 0) {
                 av_log(fg, AV_LOG_INFO, "[MSwitch] Found streamselect filter, connecting to MSwitch\n");

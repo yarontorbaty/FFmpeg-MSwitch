@@ -962,6 +962,11 @@ static int transcode(Scheduler *sch)
         if (stdin_interaction)
             if (check_keyboard_interaction(cur_time) < 0)
                 break;
+        
+        // Process MSwitch command queue (thread-safe)
+        if (global_mswitch_enabled) {
+            mswitch_cmd_queue_process(&global_mswitch_ctx);
+        }
 
         /* dump report by using the output first video and audio streams */
         print_report(0, timer_start, cur_time, transcode_ts);

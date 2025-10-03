@@ -1110,6 +1110,13 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
 
     mswitch_log(msw, AV_LOG_INFO, "Webhook config: enable=%d, port=%d\n", msw->webhook.enable, msw->webhook.port);
 
+    // Initialize command queue
+    ret = mswitch_cmd_queue_init(msw);
+    if (ret < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to initialize command queue: %d\n", ret);
+        goto cleanup_on_error;
+    }
+    
     // Start webhook server if enabled
     if (msw->webhook.enable) {
         mswitch_log(msw, AV_LOG_INFO, "Starting webhook server on port %d\n", msw->webhook.port);
@@ -1255,6 +1262,9 @@ int mswitch_cleanup(MSwitchContext *msw)
     if (msw->webhook.methods) {
         av_freep(&msw->webhook.methods);
     }
+    
+    // Cleanup command queue
+    mswitch_cmd_queue_cleanup(msw);
     
     // Cleanup main mutexes - these are always initialized in mswitch_init
     pthread_mutex_destroy(&msw->state_mutex);
@@ -1705,7 +1715,7 @@ static void *mswitch_webhook_server_thread(void *arg)
     int opt = 1;
     int addrlen = sizeof(address);
     char buffer[1024] = {0};
-    const char *response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 17\r\n\r\n{\"status\":\"ok\"}";
+    char response[1024] = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 17\r\n\r\n{\"status\":\"ok\"}";
     
     mswitch_log(msw, AV_LOG_INFO, "Starting webhook server thread on port %d\n", msw->webhook.port);
     
@@ -1758,6 +1768,7 @@ static void *mswitch_webhook_server_thread(void *arg)
         
         if (activity < 0) {
             if (!msw->webhook.server_running) break;
+            mswitch_log(msw, AV_LOG_WARNING, "Webhook select error: %s\n", strerror(errno));
             continue;
         }
         
@@ -1769,6 +1780,7 @@ static void *mswitch_webhook_server_thread(void *arg)
         if (FD_ISSET(server_fd, &readfds)) {
             if ((client_fd = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
                 if (!msw->webhook.server_running) break;
+                mswitch_log(msw, AV_LOG_WARNING, "Webhook accept error: %s\n", strerror(errno));
                 continue;
             }
             
@@ -1812,15 +1824,10 @@ static void *mswitch_webhook_server_thread(void *arg)
                                 }
                                 source_id[j] = '\0';
                                 
-                                // Perform the switch
-                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] *** SWITCHING TO SOURCE: %s ***\n", source_id);
-                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Before switch: msw=%p, nb_sources=%d, active=%d\n", 
-                                           (void*)msw, msw->nb_sources, msw->active_source_index);
+                                // Enqueue the switch command (thread-safe)
+                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] *** ENQUEUING SWITCH TO SOURCE: %s ***\n", source_id);
                                 
-                                int ret = mswitch_switch_to(msw, source_id);
-                                
-                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] After switch: ret=%d, active=%d\n", 
-                                           ret, msw->active_source_index);
+                                int ret = mswitch_cmd_queue_enqueue(msw, source_id);
                                 
                                 if (ret == 0) {
                                     snprintf(response, sizeof(response),
@@ -2018,6 +2025,108 @@ int mswitch_cli_stop(MSwitchContext *msw)
     
     mswitch_log(msw, AV_LOG_INFO, "CLI interface stopped\n");
     return 0;
+}
+
+// Command queue implementation (thread-safe)
+int mswitch_cmd_queue_init(MSwitchContext *msw)
+{
+    if (!msw) {
+        return AVERROR(EINVAL);
+    }
+    
+    msw->cmd_queue.head = 0;
+    msw->cmd_queue.tail = 0;
+    
+    if (pthread_mutex_init(&msw->cmd_queue.lock, NULL) != 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to initialize command queue mutex\n");
+        return AVERROR(ENOMEM);
+    }
+    
+    if (pthread_cond_init(&msw->cmd_queue.cond, NULL) != 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to initialize command queue condition\n");
+        pthread_mutex_destroy(&msw->cmd_queue.lock);
+        return AVERROR(ENOMEM);
+    }
+    
+    mswitch_log(msw, AV_LOG_INFO, "Command queue initialized\n");
+    return 0;
+}
+
+void mswitch_cmd_queue_cleanup(MSwitchContext *msw)
+{
+    if (!msw) {
+        return;
+    }
+    
+    pthread_mutex_destroy(&msw->cmd_queue.lock);
+    pthread_cond_destroy(&msw->cmd_queue.cond);
+    
+    mswitch_log(msw, AV_LOG_INFO, "Command queue cleaned up\n");
+}
+
+int mswitch_cmd_queue_enqueue(MSwitchContext *msw, const char *source_id)
+{
+    if (!msw || !source_id) {
+        return AVERROR(EINVAL);
+    }
+    
+    pthread_mutex_lock(&msw->cmd_queue.lock);
+    
+    // Check if queue is full
+    int next_tail = (msw->cmd_queue.tail + 1) % 100;
+    if (next_tail == msw->cmd_queue.head) {
+        mswitch_log(msw, AV_LOG_WARNING, "Command queue is full, dropping command\n");
+        pthread_mutex_unlock(&msw->cmd_queue.lock);
+        return AVERROR(ENOSPC);
+    }
+    
+    // Add command to queue
+    strncpy(msw->cmd_queue.queue[msw->cmd_queue.tail].source_id, source_id, 15);
+    msw->cmd_queue.queue[msw->cmd_queue.tail].source_id[15] = '\0';
+    msw->cmd_queue.queue[msw->cmd_queue.tail].timestamp = av_gettime();
+    msw->cmd_queue.tail = next_tail;
+    
+    // Signal that a command is available
+    pthread_cond_signal(&msw->cmd_queue.cond);
+    
+    pthread_mutex_unlock(&msw->cmd_queue.lock);
+    
+    mswitch_log(msw, AV_LOG_INFO, "Command enqueued: %s\n", source_id);
+    return 0;
+}
+
+int mswitch_cmd_queue_process(MSwitchContext *msw)
+{
+    if (!msw) {
+        return AVERROR(EINVAL);
+    }
+    
+    pthread_mutex_lock(&msw->cmd_queue.lock);
+    
+    // Check if queue is empty
+    if (msw->cmd_queue.head == msw->cmd_queue.tail) {
+        pthread_mutex_unlock(&msw->cmd_queue.lock);
+        return 0; // No commands to process
+    }
+    
+    // Get command from queue
+    MSwitchCommand cmd = msw->cmd_queue.queue[msw->cmd_queue.head];
+    msw->cmd_queue.head = (msw->cmd_queue.head + 1) % 100;
+    
+    pthread_mutex_unlock(&msw->cmd_queue.lock);
+    
+    // Process the command in main thread (thread-safe)
+    mswitch_log(msw, AV_LOG_WARNING, "[MSwitch] *** PROCESSING COMMAND: %s ***\n", cmd.source_id);
+    
+    int ret = mswitch_switch_to(msw, cmd.source_id);
+    if (ret < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to process command %s: %s\n", 
+                   cmd.source_id, av_err2str(ret));
+    } else {
+        mswitch_log(msw, AV_LOG_WARNING, "[MSwitch] *** SUCCESSFULLY PROCESSED COMMAND: %s ***\n", cmd.source_id);
+    }
+    
+    return ret;
 }
 
 int mswitch_cli_handle_command(MSwitchContext *msw, const char *command)

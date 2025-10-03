@@ -118,6 +118,18 @@ typedef struct MSwitchWebhook {
     int server_running;
 } MSwitchWebhook;
 
+typedef struct {
+    char source_id[16];
+    int64_t timestamp;
+} MSwitchCommand;
+
+typedef struct {
+    MSwitchCommand queue[100];
+    int head, tail;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+} MSwitchCommandQueue;
+
 typedef struct MSwitchCLI {
     int enable;
     pthread_t cli_thread;
@@ -152,6 +164,9 @@ typedef struct MSwitchContext {
     MSwitchCLI cli;
     MSwitchAuto auto_failover;
     MSwitchRevertPolicy revert;
+    
+    // Thread-safe command queue
+    MSwitchCommandQueue cmd_queue;
     
     // Runtime state
     int active_source_index;
@@ -233,6 +248,12 @@ int mswitch_webhook_handle_request(MSwitchContext *msw, const char *json_request
 
 // CLI interface
 int mswitch_cli_start(MSwitchContext *msw);
+
+// Command queue API (thread-safe)
+int mswitch_cmd_queue_init(MSwitchContext *msw);
+void mswitch_cmd_queue_cleanup(MSwitchContext *msw);
+int mswitch_cmd_queue_enqueue(MSwitchContext *msw, const char *source_id);
+int mswitch_cmd_queue_process(MSwitchContext *msw);
 int mswitch_cli_stop(MSwitchContext *msw);
 int mswitch_cli_handle_command(MSwitchContext *msw, const char *command);
 
