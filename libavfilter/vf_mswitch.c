@@ -70,7 +70,7 @@ static int activate(AVFilterContext *ctx)
     MSwitchContext *s = ctx->priv;
     AVFilterLink *outlink = ctx->outputs[0];
     AVFrame *frame = NULL;
-    int ret, i;
+    int i;
     static int debug_counter = 0;
     
     // Safety check
@@ -97,19 +97,6 @@ static int activate(AVFilterContext *ctx)
         }
     }
     
-    // Debug buffer sizes every 30 activations
-    if (++debug_counter % 30 == 0) {
-        av_log(ctx, AV_LOG_INFO, "[MSwitch Filter] Buffer Debug - Active input: %d, startup_phase: %d, sources_ingested: %d\n", 
-               s->active_input, s->startup_phase, s->sources_ingested);
-        for (i = 0; i < ctx->nb_inputs; i++) {
-            int queued_frames = ff_inlink_queued_frames(ctx->inputs[i]);
-            int status;
-            int64_t status_pts;
-            int has_status = ff_inlink_acknowledge_status(ctx->inputs[i], &status, &status_pts);
-            av_log(ctx, AV_LOG_INFO, "[MSwitch Filter] Input %d: queued_frames=%d, has_status=%d, status=%d, wanted=%d\n", 
-                   i, queued_frames, has_status, has_status ? status : 0, ff_outlink_frame_wanted(outlink));
-        }
-    }
     
     // Tube buffering: Limit frames per input during startup
     if (s->startup_phase) {
@@ -137,58 +124,58 @@ static int activate(AVFilterContext *ctx)
         av_log(ctx, AV_LOG_INFO, "[MSwitch Filter] ⚡ Switched from input %d to input %d\n",
                s->last_input, s->active_input);
         s->last_input = s->active_input;
-        
-        // Clear any buffered frames from inactive inputs when switching
-        for (i = 0; i < ctx->nb_inputs; i++) {
-            if (i != s->active_input) {
-                AVFrame *discard;
-                int discarded = 0;
-                while (ff_inlink_consume_frame(ctx->inputs[i], &discard) > 0) {
+    }
+    
+    // CRITICAL: Process ALL inputs on every activation to keep them alive
+    // The key is to consume AND discard frames from inactive inputs to signal continuous demand
+    for (i = 0; i < ctx->nb_inputs; i++) {
+        if (i == s->active_input) {
+            // Active input: try to get a frame to output
+            int ret = ff_inlink_consume_frame(ctx->inputs[i], &frame);
+            if (ret < 0)
+                return ret;
+        } else {
+            // Inactive inputs: consume and discard frames to keep decoders active
+            // But maintain a small buffer (2-5 frames) for seamless switching
+            AVFrame *discard;
+            int queued = ff_inlink_queued_frames(ctx->inputs[i]);
+            
+            // If buffer is over 5, consume one frame to prevent buildup
+            if (queued > 5) {
+                if (ff_inlink_consume_frame(ctx->inputs[i], &discard) > 0) {
                     av_frame_free(&discard);
-                    discarded++;
-                }
-                if (discarded > 0) {
-                    av_log(ctx, AV_LOG_INFO, "[MSwitch Filter] Discarded %d frames from inactive input %d\n", 
-                           discarded, i);
                 }
             }
         }
     }
     
-    // Only forward status from the active input to prevent buffering
+    // Forward status only from the active input to prevent inactive inputs from reaching EOF
     FF_FILTER_FORWARD_STATUS(ctx->inputs[s->active_input], outlink);
-    
-    // Try to get a frame from the active input
-    ret = ff_inlink_consume_frame(ctx->inputs[s->active_input], &frame);
-    if (ret < 0)
-        return ret;
     
     if (frame) {
         av_log(ctx, AV_LOG_DEBUG, "[MSwitch Filter] Outputting frame from input %d, pts=%lld\n",
                s->active_input, frame->pts);
         
+        // Debug: Show buffer sizes for all inputs
+        static int debug_counter = 0;
+        if (debug_counter % 10 == 0) {
+            av_log(ctx, AV_LOG_INFO, "[MSwitch] Buffer status (frame %d):\n", debug_counter);
+            for (int j = 0; j < ctx->nb_inputs; j++) {
+                int queued = ff_inlink_queued_frames(ctx->inputs[j]);
+                av_log(ctx, AV_LOG_INFO, "  Input %d: %d frames queued (active: %s)\n", 
+                       j, queued, (j == s->active_input) ? "YES" : "NO");
+            }
+        }
+        debug_counter++;
+        
         return ff_filter_frame(outlink, frame);
     }
     
-    // Aggressively discard frames from inactive inputs to prevent buffering
+    // Request frames from ALL inputs to keep them all reading
+    // This is critical - it signals demand to all input threads
     for (i = 0; i < ctx->nb_inputs; i++) {
-        if (i != s->active_input) {
-            AVFrame *discard;
-            int discarded = 0;
-            // Discard multiple frames at once to clear buffers faster
-            while (ff_inlink_consume_frame(ctx->inputs[i], &discard) > 0) {
-                av_frame_free(&discard);
-                discarded++;
-            }
-            if (discarded > 0 && debug_counter % 30 == 0) {
-                av_log(ctx, AV_LOG_INFO, "[MSwitch Filter] Discarded %d frames from inactive input %d\n", 
-                       discarded, i);
-            }
-        }
+        FF_FILTER_FORWARD_WANTED(outlink, ctx->inputs[i]);
     }
-    
-    // Only request frames from the active input to prevent buffering inactive inputs
-    FF_FILTER_FORWARD_WANTED(outlink, ctx->inputs[s->active_input]);
     
     return FFERROR_NOT_READY;
 }

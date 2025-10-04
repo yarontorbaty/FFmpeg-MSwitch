@@ -1,0 +1,12 @@
+[swscaler @ 0x120968000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x120988000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x120998000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x1209a8000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x1209b8000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x1209c8000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x1209d8000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x1209e8000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x1209f8000] No accelerated colorspace conversion found from yuv420p to bgr24.
+[swscaler @ 0x120968000] [swscaler @ 0x120a08000] No accelerated colorspace conversion found from yuv420p to bgr24.
+2025-10-03 18:39:35.940 ffplay[44643:2604488] +[IMKClient subclass]: chose IMKClient_Legacy
+

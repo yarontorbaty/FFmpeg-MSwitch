@@ -1134,7 +1134,7 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
     msw->cli.cli_running = 0;
     
     // Initialize auto failover
-    msw->auto_failover.enable = 1; // Auto failover enabled by default (can be disabled via command line)
+    msw->auto_failover.enable = 0; // Disabled by default, must be explicitly enabled
     msw->auto_failover.health_window_ms = MSW_DEFAULT_HEALTH_WINDOW_MS;
     msw->auto_failover.recovery_delay_ms = 5000; // 5 seconds recovery delay
     
@@ -1145,7 +1145,7 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
     if (msw->auto_failover.enable) {
         mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover enabled via command line\n");
     } else {
-        mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover disabled (not enabled via command line)\n");
+        mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover disabled by default\n");
     }
     msw->auto_failover.failover_count = 0;
     msw->auto_failover.last_failover_time = 0;
@@ -1362,17 +1362,29 @@ int mswitch_switch_to(MSwitchContext *msw, const char *source_id)
         return AVERROR(EINVAL);
     }
     
-    // Find target source index
-    for (i = 0; i < msw->nb_sources; i++) {
-        if (strcmp(msw->sources[i].id, source_id) == 0) {
-            target_index = i;
-            break;
+    // Check if source_id is a numeric index (e.g., "0", "1", "2")
+    if (source_id[0] >= '0' && source_id[0] <= '9' && source_id[1] == '\0') {
+        // Numeric index
+        target_index = source_id[0] - '0';
+        if (target_index < 0 || target_index >= msw->nb_sources) {
+            mswitch_log(msw, AV_LOG_ERROR, "Source index %d out of range (0-%d)\n", 
+                       target_index, msw->nb_sources - 1);
+            return AVERROR(EINVAL);
         }
-    }
-    
-    if (target_index == -1) {
-        mswitch_log(msw, AV_LOG_ERROR, "Source '%s' not found\n", source_id);
-        return AVERROR(EINVAL);
+        mswitch_log(msw, AV_LOG_INFO, "Parsed numeric index: %d\n", target_index);
+    } else {
+        // Find target source by ID (e.g., "s0", "s1", "s2")
+        for (i = 0; i < msw->nb_sources; i++) {
+            if (strcmp(msw->sources[i].id, source_id) == 0) {
+                target_index = i;
+                break;
+            }
+        }
+        
+        if (target_index == -1) {
+            mswitch_log(msw, AV_LOG_ERROR, "Source '%s' not found\n", source_id);
+            return AVERROR(EINVAL);
+        }
     }
     
     mswitch_log(msw, AV_LOG_INFO, "Switch request: target=%d (%s), current=%d\n", 
@@ -1780,6 +1792,12 @@ void mswitch_check_duplicate_threshold(MSwitchContext *msw)
             }
         }
         
+        // Log buffer tracking during startup
+        if (current_time % 2000 < 100) { // Log every 2 seconds
+            mswitch_log(msw, AV_LOG_INFO, "[BUFFER_TRACK] Startup monitoring - output_started=%d, time=%ldms\n",
+                       output_started, current_time);
+        }
+        
         if (output_started) {
             if (first_frame_time == 0) {
                 first_frame_time = current_time;
@@ -2060,58 +2078,87 @@ static void *mswitch_webhook_server_thread(void *arg)
                 mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Raw request:\n%s\n", buffer);
                 
                 // Parse request for switch command
-                // Expected format: POST /switch with JSON body {"source":"s1"}
+                // Expected formats:
+                //   1. POST /switch/1 (URL path)
+                //   2. POST /switch with JSON body {"source":"s1"}
                 if (strstr(buffer, "POST /switch")) {
                     mswitch_log(msw, AV_LOG_WARNING, "[Webhook] POST /switch detected\n");
                     
-                    // Look for source in JSON body
-                    char *body = strstr(buffer, "\r\n\r\n");
-                    if (body) {
-                        body += 4; // Skip the \r\n\r\n
-                        mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Body: %s\n", body);
+                    char source_id[16] = {0};
+                    int source_found = 0;
+                    
+                    // First, try to parse source ID from URL path (e.g., /switch/1)
+                    char *url_start = strstr(buffer, "POST /switch/");
+                    if (url_start) {
+                        url_start += strlen("POST /switch/");
+                        mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Parsing source ID from URL path\n");
                         
-                        // Simple JSON parsing - look for "source":"sX"
-                        char *source_start = strstr(body, "\"source\"");
-                        if (source_start) {
-                            mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Found 'source' field\n");
+                        // Extract source ID from URL (could be "0", "1", "2", "s0", "s1", etc.)
+                        int j = 0;
+                        while (j < 15 && *url_start && *url_start != ' ' && *url_start != '\r' && *url_start != '\n') {
+                            source_id[j++] = *url_start++;
+                        }
+                        source_id[j] = '\0';
+                        
+                        if (source_id[0] != '\0') {
+                            source_found = 1;
+                            mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Extracted source ID from URL: '%s'\n", source_id);
+                        }
+                    }
+                    
+                    // If not found in URL, try JSON body
+                    if (!source_found) {
+                        char *body = strstr(buffer, "\r\n\r\n");
+                        if (body) {
+                            body += 4; // Skip the \r\n\r\n
+                            mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Body: %s\n", body);
                             
-                            source_start = strchr(source_start, ':');
+                            // Simple JSON parsing - look for "source":"sX"
+                            char *source_start = strstr(body, "\"source\"");
                             if (source_start) {
-                                source_start++; // Skip ':'
-                                while (*source_start == ' ' || *source_start == '"') source_start++;
+                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Found 'source' field in JSON\n");
                                 
-                                // Extract source ID (s0, s1, s2, etc.)
-                                char source_id[16] = {0};
-                                int j = 0;
-                                while (j < 15 && *source_start && *source_start != '"' && *source_start != '}') {
-                                    source_id[j++] = *source_start++;
+                                source_start = strchr(source_start, ':');
+                                if (source_start) {
+                                    source_start++; // Skip ':'
+                                    while (*source_start == ' ' || *source_start == '"') source_start++;
+                                    
+                                    // Extract source ID (s0, s1, s2, etc.)
+                                    int j = 0;
+                                    while (j < 15 && *source_start && *source_start != '"' && *source_start != '}') {
+                                        source_id[j++] = *source_start++;
+                                    }
+                                    source_id[j] = '\0';
+                                    source_found = 1;
                                 }
-                                source_id[j] = '\0';
-                                
-                                // Enqueue the switch command (thread-safe)
-                                mswitch_log(msw, AV_LOG_WARNING, "[Webhook] *** ENQUEUING SWITCH TO SOURCE: %s ***\n", source_id);
-                                
-                                int ret = mswitch_cmd_queue_enqueue(msw, source_id);
-                                
-                                if (ret == 0) {
-                                    snprintf(response, sizeof(response),
-                                            "HTTP/1.1 200 OK\r\n"
-                                            "Content-Type: application/json\r\n\r\n"
-                                            "{\"status\":\"ok\",\"source\":\"%s\"}", source_id);
-                                } else {
-                                    snprintf(response, sizeof(response),
-                                            "HTTP/1.1 400 Bad Request\r\n"
-                                            "Content-Type: application/json\r\n\r\n"
-                                            "{\"status\":\"error\",\"message\":\"Switch failed\",\"code\":%d}", ret);
-                                }
-                            } else {
-                                mswitch_log(msw, AV_LOG_ERROR, "[Webhook] No colon after 'source'\n");
                             }
+                        }
+                    }
+                    
+                    // Process the switch command if source was found
+                    if (source_found) {
+                        // Enqueue the switch command (thread-safe)
+                        mswitch_log(msw, AV_LOG_WARNING, "[Webhook] *** ENQUEUING SWITCH TO SOURCE: %s ***\n", source_id);
+                        
+                        int ret = mswitch_cmd_queue_enqueue(msw, source_id);
+                        
+                        if (ret == 0) {
+                            snprintf(response, sizeof(response),
+                                    "HTTP/1.1 200 OK\r\n"
+                                    "Content-Type: application/json\r\n\r\n"
+                                    "{\"status\":\"ok\",\"source\":\"%s\"}", source_id);
                         } else {
-                            mswitch_log(msw, AV_LOG_ERROR, "[Webhook] 'source' field not found in body\n");
+                            snprintf(response, sizeof(response),
+                                    "HTTP/1.1 400 Bad Request\r\n"
+                                    "Content-Type: application/json\r\n\r\n"
+                                    "{\"status\":\"error\",\"message\":\"Switch failed\",\"code\":%d}", ret);
                         }
                     } else {
-                        mswitch_log(msw, AV_LOG_ERROR, "[Webhook] No body found in request\n");
+                        mswitch_log(msw, AV_LOG_ERROR, "[Webhook] Source ID not found in URL or body\n");
+                        snprintf(response, sizeof(response),
+                                "HTTP/1.1 400 Bad Request\r\n"
+                                "Content-Type: application/json\r\n\r\n"
+                                "{\"status\":\"error\",\"message\":\"Source ID not found\"}");
                     }
                 } else {
                     mswitch_log(msw, AV_LOG_WARNING, "[Webhook] Not a POST /switch request\n");

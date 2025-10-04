@@ -1,0 +1,333 @@
+ffmpeg version N-121303-ga53553a3c7 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 16.0.0 (clang-1600.0.26.6)
+  configuration: --disable-doc --enable-libx264 --enable-encoder=libx264 --enable-encoder=aac --enable-gpl
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.100 / 62.  6.100
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+[Parsed_mswitch_0 @ 0x131f04b40] [MSwitch Filter] Initializing with 3 inputs, tube_size=2
+[Parsed_mswitch_0 @ 0x131f04b40] [MSwitch Filter] Uninitialized
+[mpegts @ 0x131f04c10] Stream #0: not enough frames to estimate rate; consider increasing probesize
+Input #0, mpegts, from 'test_red.mts':
+  Duration: 00:00:09.98, start: 1.400000, bitrate: 101 kb/s
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #0:0[0x100]: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 60 tbr, 90k tbn, start 1.400000
+Input #1, mpegts, from 'test_green.mts':
+  Duration: 00:00:10.00, start: 1.400000, bitrate: 101 kb/s
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #1:0[0x100]: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 1.400000
+Input #2, mpegts, from 'test_blue.mts':
+  Duration: 00:00:10.00, start: 1.400000, bitrate: 101 kb/s
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #2:0[0x100]: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 1.400000
+MSwitch enabled, initializing...
+Debug: sources_backup = s0=local;s1=local;s2=local
+[MSwitch] Initializing native MSwitch...
+[MSwitch] Parsing sources: s0=local;s1=local;s2=local
+[MSwitch] Successfully parsed 3 sources
+[MSwitch] Configuration: mode=graceful, ingest=hot, sources=3
+[MSwitch] Active source: 0 (s0)
+[MSwitch] Webhook config: enable=0, port=8099
+[MSwitch] Command queue initialized
+[MSwitch] [DEBUG] Auto-failover initialized: enable=1, recovery_delay=5000
+[MSwitch] [DEBUG] Auto-failover enabled via command line
+[MSwitch] Skipping subprocess creation for lavfi inputs
+[MSwitch] Skipping UDP proxy thread for lavfi inputs
+[MSwitch] MSwitch initialized with 3 sources
+[MSwitch] MSwitch proxy listening on ports 12350-12352, forwarding to port 12400
+[MSwitch] Interactive commands: 0-2 (switch source), m (status), ? (help)
+[MSwitch] Starting MSwitch controller
+[MSwitch] Health monitoring thread disabled - using immediate duplicate frame detection
+[MSwitch] MSwitch controller started successfully
+Stream mapping:
+  Stream #0:0 (h264) -> mswitch
+  Stream #1:0 (h264) -> mswitch
+  Stream #2:0 (h264) -> mswitch
+  fps:default -> Stream #0:0 (libx264)
+Press [q] to stop, [?] for help
+[Parsed_mswitch_0 @ 0x121e0c6d0] [MSwitch Filter] Initializing with 3 inputs, tube_size=2
+[Parsed_mswitch_0 @ 0x121e0c6d0] [MSwitch Filter] Configured: 1280x720, active_input=0
+[fc#0 @ 0x132808200] [MSwitch] Found mswitch filter, connecting to MSwitch
+[MSwitch] Filter-based switching initialized (streamselect filter attached)
+[MSwitch] Filter setup complete - will use runtime switching via avfilter_process_command
+[Parsed_mswitch_0 @ 0x121e0c6d0] [MSwitch Filter] Startup phase complete - all 3 sources ingested
+[libx264 @ 0x131e166f0] using SAR=1/1
+[libx264 @ 0x131e166f0] using cpu capabilities: ARMv8 NEON DotProd I8MM
+[libx264 @ 0x131e166f0] profile Constrained Baseline, level 3.1, 4:2:0, 8-bit
+Output #0, mpegts, to 'test_direct.mts':
+  Metadata:
+    encoder         : Lavf62.6.100
+  Stream #0:0: Video: h264, yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 90k tbn
+    Metadata:
+      encoder         : Lavc62.16.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] MSwitch Filter - Active: 0, startup: 0, ingested: 3
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 0: queued=1, status=0, wanted=1
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 1: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [BUFFER_TRACK] Input 2: queued=0, status=0, wanted=1, buffer_duration=0ms, time_base=1/90000
+[Parsed_mswitch_0 @ 0x121e0c6d0] [MSwitch Filter] Uninitialized
+[out#0/mpegts @ 0x131e153a0] video:31KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 297.336934%
+frame=  300 fps=0.0 q=-1.0 Lsize=     124KiB time=00:00:10.00 bitrate= 101.2kbits/s speed=71.8x elapsed=0:00:00.13    
+[libx264 @ 0x131e166f0] frame I:10    Avg QP:11.00  size:  2836
+[libx264 @ 0x131e166f0] frame P:290   Avg QP:13.07  size:    12
+[libx264 @ 0x131e166f0] mb I  I16..4: 100.0%  0.0%  0.0%
+[libx264 @ 0x131e166f0] mb P  I16..4:  0.0%  0.0%  0.0%  P16..4:  0.0%  0.0%  0.0%  0.0%  0.0%    skip:100.0%
+[libx264 @ 0x131e166f0] coded y,uvDC,uvAC intra: 0.0% 0.0% 0.0% inter: 0.0% 0.0% 0.0%
+[libx264 @ 0x131e166f0] i16 v,h,dc,p: 98%  0%  2%  0%
+[libx264 @ 0x131e166f0] i8c dc,h,v,p: 100%  0%  0%  0%
+[libx264 @ 0x131e166f0] kb/s:25.47
+[MSwitch] Stopping MSwitch controller
+[MSwitch] MSwitch controller stopped
+[MSwitch] Stopping MSwitch controller
+[MSwitch] MSwitch controller stopped
+[MSwitch] Command queue cleaned up
+[MSwitch] MSwitch cleanup completed

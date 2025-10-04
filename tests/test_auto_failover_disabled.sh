@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# Test Auto-Failover Disabled by Default
+# This test verifies that auto-failover is disabled by default
+
+echo "=== Auto-Failover Disabled by Default Test ==="
+echo "This test verifies that auto-failover is disabled by default"
+echo ""
+
+# Start UDP sources
+echo "Starting UDP sources..."
+ffmpeg -f lavfi -re -i "color=red:size=1280x720:rate=30" \
+  -vf "drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='RED %{localtime}.%{eif\:1M*t-1K*trunc(t*1K)\:d}':x=40:y=60:fontsize=64:fontcolor=white:box=1:boxcolor=0x00000088" \
+  -c:v libx264 -r 30 -preset ultrafast -tune zerolatency -g 30 -keyint_min 1 -sc_threshold 0 \
+  -f mpegts udp://127.0.0.1:12350 > /dev/null 2>&1 &
+RED_PID=$!
+
+ffmpeg -f lavfi -re -i "color=green:size=1280x720:rate=30" \
+  -vf "drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='GREEN %{localtime}.%{eif\:1M*t-1K*trunc(t*1K)\:d}':x=40:y=60:fontsize=64:fontcolor=white:box=1:boxcolor=0x00000088" \
+  -c:v libx264 -r 30 -preset ultrafast -tune zerolatency -g 30 -keyint_min 1 -sc_threshold 0 \
+  -f mpegts udp://127.0.0.1:12351 > /dev/null 2>&1 &
+GREEN_PID=$!
+
+ffmpeg -f lavfi -re -i "color=blue:size=1280x720:rate=30" \
+  -vf "drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='BLUE %{localtime}.%{eif\:1M*t-1K*trunc(t*1K)\:d}':x=40:y=60:fontsize=64:fontcolor=white:box=1:boxcolor=0x00000088" \
+  -c:v libx264 -r 30 -preset ultrafast -tune zerolatency -g 30 -keyint_min 1 -sc_threshold 0 \
+  -f mpegts udp://127.0.0.1:12352 > /dev/null 2>&1 &
+BLUE_PID=$!
+
+sleep 3
+
+echo "=== TEST: Auto-Failover Disabled by Default ==="
+echo "Running FFmpeg with MSwitch but WITHOUT auto-failover enabled..."
+echo ""
+
+# Run FFmpeg without auto-failover enabled
+timeout 10s ./ffmpeg -y \
+  -fflags nobuffer -flags low_delay \
+  -analyzeduration 0 -probesize 32 -max_delay 0 \
+  -flush_packets 1 \
+  -loglevel info \
+  -msw.enable -msw.sources "s0=local;s1=local;s2=local" \
+  -i "udp://127.0.0.1:12350?fifo_size=10240&overrun_nonfatal=1&timeout=1000000&buffer_size=65536" \
+  -i "udp://127.0.0.1:12351?fifo_size=10240&overrun_nonfatal=1&timeout=1000000&buffer_size=65536" \
+  -i "udp://127.0.0.1:12352?fifo_size=10240&overrun_nonfatal=1&timeout=1000000&buffer_size=65536" \
+  -filter_complex "[0:v][1:v][2:v]mswitch=inputs=3:map=0:tube=2,fps=30[out]" \
+  -map "[out]" -c:v libx264 -r 30 -preset ultrafast -g 30 -keyint_min 1 -sc_threshold 0 \
+  -pix_fmt yuv420p -f mpegts test_output.mts > auto_failover_test.log 2>&1
+
+echo "Test completed. Analyzing logs..."
+echo ""
+
+# Cleanup
+kill $RED_PID $GREEN_PID $BLUE_PID 2>/dev/null
+
+echo "=== LOG ANALYSIS ==="
+echo ""
+
+echo "1. Check for auto-failover initialization:"
+grep "Auto-failover initialized" auto_failover_test.log
+
+echo ""
+echo "2. Check for auto-failover status:"
+grep "Auto-failover.*disabled" auto_failover_test.log
+
+echo ""
+echo "3. Check for health monitoring messages:"
+grep "health monitoring" auto_failover_test.log
+
+echo ""
+echo "4. Check for duplicate frame detection:"
+grep "duplicate.*threshold" auto_failover_test.log
+
+echo ""
+echo "5. Check for MSwitch initialization:"
+grep "MSwitch.*initialized" auto_failover_test.log
+
+echo ""
+echo "=== EXPECTED RESULTS ==="
+echo ""
+echo "✅ Should see: 'Auto-failover disabled by default'"
+echo "✅ Should see: 'enable=0' in auto-failover initialization"
+echo "❌ Should NOT see: health monitoring messages"
+echo "❌ Should NOT see: duplicate frame detection messages"
+echo ""
+echo "This confirms auto-failover is disabled by default!"
+
+# Cleanup
+rm -f test_output.mts

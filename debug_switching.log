@@ -1,0 +1,906 @@
+ffmpeg version N-121303-ga53553a3c7 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 16.0.0 (clang-1600.0.26.6)
+  configuration: --disable-doc --enable-libx264 --enable-encoder=libx264 --enable-encoder=aac --enable-gpl
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.100 / 62.  6.100
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+Splitting the commandline.
+Reading option '-loglevel' ... matched as option 'loglevel' (set logging level) with argument 'debug'.
+Reading option '-msw.enable' ... matched as option 'msw.enable' (enable multi-source switch mode) with argument '1'.
+Reading option '-msw.sources' ... matched as option 'msw.sources' (define multi-source inputs (s0=url1;s1=url2;s2=url3)) with argument 's0=local;s1=local;s2=local'.
+Reading option '-msw.auto.recovery_delay' ... matched as option 'msw.auto.recovery_delay' (recovery delay in milliseconds before allowing failover back) with argument '2000'.
+Reading option '-thread_queue_size' ... matched as option 'thread_queue_size' (set the maximum number of queued packets from the demuxer) with argument '512'.
+Reading option '-fflags' ... matched as AVOption 'fflags' with argument 'nobuffer'.
+Reading option '-flags' ... matched as AVOption 'flags' with argument 'low_delay'.
+Reading option '-i' ... matched as input url with argument 'udp://127.0.0.1:12350?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536'.
+Reading option '-thread_queue_size' ... matched as option 'thread_queue_size' (set the maximum number of queued packets from the demuxer) with argument '512'.
+Reading option '-fflags' ... matched as AVOption 'fflags' with argument 'nobuffer'.
+Reading option '-flags' ... matched as AVOption 'flags' with argument 'low_delay'.
+Reading option '-i' ... matched as input url with argument 'udp://127.0.0.1:12351?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536'.
+Reading option '-thread_queue_size' ... matched as option 'thread_queue_size' (set the maximum number of queued packets from the demuxer) with argument '512'.
+Reading option '-fflags' ... matched as AVOption 'fflags' with argument 'nobuffer'.
+Reading option '-flags' ... matched as AVOption 'flags' with argument 'low_delay'.
+Reading option '-i' ... matched as input url with argument 'udp://127.0.0.1:12352?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536'.
+Reading option '-filter_complex' ... matched as option 'filter_complex' (create a complex filtergraph) with argument '[0:v][1:v][2:v]mswitch=inputs=3:map=0:tube=30,fps=30[out]'.
+Reading option '-map' ... matched as option 'map' (set input stream mapping) with argument '[out]'.
+Reading option '-c:v' ... matched as option 'c' (select encoder/decoder ('copy' to copy stream without reencoding)) with argument 'libx264'.
+Reading option '-r' ... matched as option 'r' (override input framerate/convert to given output framerate (Hz value, fraction or abbreviation)) with argument '30'.
+Reading option '-preset' ... matched as AVOption 'preset' with argument 'ultrafast'.
+Reading option '-g' ... matched as AVOption 'g' with argument '60'.
+Reading option '-keyint_min' ... matched as AVOption 'keyint_min' with argument '1'.
+Reading option '-sc_threshold' ... matched as AVOption 'sc_threshold' with argument '0'.
+Reading option '-pix_fmt' ... matched as option 'pix_fmt' (set pixel format) with argument 'yuv420p'.
+Reading option '-f' ... matched as option 'f' (force container format (auto-detected otherwise)) with argument 'mpegts'.
+Reading option '-y' ... matched as option 'y' (overwrite output files) with argument '1'.
+Reading option 'test_debug_output.mts' ... matched as output url.
+Finished splitting the commandline.
+Parsing a group of options: global .
+Applying option loglevel (set logging level) with argument debug.
+Applying option msw.enable (enable multi-source switch mode) with argument 1.
+Applying option msw.sources (define multi-source inputs (s0=url1;s1=url2;s2=url3)) with argument s0=local;s1=local;s2=local.
+Applying option msw.auto.recovery_delay (recovery delay in milliseconds before allowing failover back) with argument 2000.
+Applying option filter_complex (create a complex filtergraph) with argument [0:v][1:v][2:v]mswitch=inputs=3:map=0:tube=30,fps=30[out].
+Applying option y (overwrite output files) with argument 1.
+Successfully parsed a group of options.
+[AVFilterGraph @ 0x14d6139e0] Setting 'inputs' to value '3'
+[AVFilterGraph @ 0x14d6139e0] Setting 'map' to value '0'
+[AVFilterGraph @ 0x14d6139e0] Setting 'tube' to value '30'
+[AVFilterGraph @ 0x14d6139e0] Setting 'fps' to value '30'
+[Parsed_mswitch_0 @ 0x14d613ce0] [MSwitch Filter] Initializing with 3 inputs, tube_size=30
+[Parsed_mswitch_0 @ 0x14d613ce0] [MSwitch Filter] Uninitialized
+[Parsed_fps_1 @ 0x14d613e20] 0 frames in, 0 frames out; 0 frames dropped, 0 frames duplicated.
+Parsing a group of options: input url udp://127.0.0.1:12350?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+Applying option thread_queue_size (set the maximum number of queued packets from the demuxer) with argument 512.
+Successfully parsed a group of options.
+Opening an input file: udp://127.0.0.1:12350?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+[AVFormatContext @ 0x14d613db0] Opening 'udp://127.0.0.1:12350?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536' for reading
+[udp @ 0x14d615270] No default whitelist set
+[udp @ 0x14d615270] end receive buffer size reported is 65536
+[mpegts @ 0x14d613db0] Format mpegts probed with size=2048 and score=50
+[mpegts @ 0x14d613db0] stream=0 stream_type=1b pid=100 prog_reg_desc=
+[mpegts @ 0x14d613db0] Before avformat_find_stream_info() pos: 0 bytes read:4292 seeks:0 nb_streams:1
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] no frame!
+[h264 @ 0x14d616a10] Decoding VUI
+[extract_extradata @ 0x14d61f790] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x14d61f790] nal_unit_type: 7(SPS), nal_ref_idc: 3
+[extract_extradata @ 0x14d61f790] nal_unit_type: 8(PPS), nal_ref_idc: 3
+[extract_extradata @ 0x14d61f790] nal_unit_type: 5(IDR), nal_ref_idc: 3
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 7(SPS), nal_ref_idc: 3
+[h264 @ 0x14d616a10] nal_unit_type: 8(PPS), nal_ref_idc: 3
+[h264 @ 0x14d616a10] nal_unit_type: 5(IDR), nal_ref_idc: 3
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] Decoding VUI
+[h264 @ 0x14d616a10] Format yuv420p chosen by get_format().
+[h264 @ 0x14d616a10] Reinit context to 1280x720, pix_fmt: yuv420p
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x14d616a10] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x14d616a10] Decoding VUI
+    Last message repeated 1 times
+[mpegts @ 0x14d613db0] max_analyze_duration 5000000 reached at 5000000 microseconds st:0
+[mpegts @ 0x14d613db0] After avformat_find_stream_info() pos: 607804 bytes read:609088 seeks:0 frames:196
+Input #0, mpegts, from 'udp://127.0.0.1:12350?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536':
+  Duration: N/A, start: 303.866667, bitrate: N/A
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #0:0[0x100], 196, 1/90000: Video: h264 (Constrained Baseline), 1 reference frame ([27][0][0][0] / 0x001B), yuv420p(progressive, left), 1280x720 [SAR 1:1 DAR 16:9], 0/1, 30 fps, 30 tbr, 90k tbn, start 303.866667
+Successfully opened the file.
+Parsing a group of options: input url udp://127.0.0.1:12351?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+Applying option thread_queue_size (set the maximum number of queued packets from the demuxer) with argument 512.
+Successfully parsed a group of options.
+Opening an input file: udp://127.0.0.1:12351?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+[AVFormatContext @ 0x11d704900] Opening 'udp://127.0.0.1:12351?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536' for reading
+[udp @ 0x11d704bb0] No default whitelist set
+[udp @ 0x11d704bb0] end receive buffer size reported is 65536
+[mpegts @ 0x11d704900] Format mpegts probed with size=2048 and score=50
+[mpegts @ 0x11d704900] stream=0 stream_type=1b pid=100 prog_reg_desc=
+[mpegts @ 0x11d704900] Before avformat_find_stream_info() pos: 0 bytes read:2788 seeks:0 nb_streams:1
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] non-existing PPS 0 referenced
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] no frame!
+[h264 @ 0x12d7048c0] Decoding VUI
+[extract_extradata @ 0x12d70d620] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[extract_extradata @ 0x12d70d620] nal_unit_type: 7(SPS), nal_ref_idc: 3
+[extract_extradata @ 0x12d70d620] nal_unit_type: 8(PPS), nal_ref_idc: 3
+[extract_extradata @ 0x12d70d620] nal_unit_type: 5(IDR), nal_ref_idc: 3
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 7(SPS), nal_ref_idc: 3
+[h264 @ 0x12d7048c0] nal_unit_type: 8(PPS), nal_ref_idc: 3
+[h264 @ 0x12d7048c0] nal_unit_type: 5(IDR), nal_ref_idc: 3
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] Decoding VUI
+[h264 @ 0x12d7048c0] Format yuv420p chosen by get_format().
+[h264 @ 0x12d7048c0] Reinit context to 1280x720, pix_fmt: yuv420p
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] nal_unit_type: 9(AUD), nal_ref_idc: 0
+[h264 @ 0x12d7048c0] nal_unit_type: 1(Coded slice of a non-IDR picture), nal_ref_idc: 2
+    Last message repeated 7 times
+[h264 @ 0x12d7048c0] Decoding VUI
+[mpegts @ 0x11d704900] interrupted
+[mpegts @ 0x11d704900] After avformat_find_stream_info() pos: 292528 bytes read:292528 seeks:0 frames:100
+Input #1, mpegts, from 'udp://127.0.0.1:12351?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536':
+  Duration: N/A, start: 308.500000, bitrate: N/A
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #1:0[0x100], 100, 1/90000: Video: h264 (Constrained Baseline), 1 reference frame ([27][0][0][0] / 0x001B), yuv420p(progressive, left), 1280x720 [SAR 1:1 DAR 16:9], 0/1, 30 fps, 30 tbr, 90k tbn, start 308.500000
+Successfully opened the file.
+Parsing a group of options: input url udp://127.0.0.1:12352?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+Applying option thread_queue_size (set the maximum number of queued packets from the demuxer) with argument 512.
+Successfully parsed a group of options.
+Opening an input file: udp://127.0.0.1:12352?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+[AVFormatContext @ 0x11d705650] Opening 'udp://127.0.0.1:12352?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536' for reading
+[udp @ 0x11d705b40] No default whitelist set
+[udp @ 0x11d705b40] end receive buffer size reported is 65536
+[AVIOContext @ 0x11e0046b0] Statistics: 0 bytes read, 0 seeks
+Error opening input file udp://127.0.0.1:12352?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536.
+[AVIOContext @ 0x14d7042b0] Statistics: 609088 bytes read, 0 seeks
+[AVIOContext @ 0x11d704c70] Statistics: 292528 bytes read, 0 seeks
+Exiting normally, received signal 15.
+
+Exiting with exit code 0

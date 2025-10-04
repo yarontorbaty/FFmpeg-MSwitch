@@ -1,0 +1,862 @@
+ffmpeg version N-121303-ga53553a3c7 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 16.0.0 (clang-1600.0.26.6)
+  configuration: --disable-doc --enable-libx264 --enable-encoder=libx264 --enable-encoder=aac --enable-gpl
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.100 / 62.  6.100
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+[Parsed_mswitch_0 @ 0x151e04520] [MSwitch Filter] Initializing with 3 inputs, tube_size=30
+[Parsed_mswitch_0 @ 0x151e04520] [MSwitch Filter] Uninitialized
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+[h264 @ 0x121e047a0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x121e047a0] no frame!
+Input #0, mpegts, from 'udp://127.0.0.1:12350?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536':
+  Duration: N/A, start: 1890.933333, bitrate: N/A
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #0:0[0x100]: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 1890.933333
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+[h264 @ 0x152907d50] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152907d50] no frame!
+Input #1, mpegts, from 'udp://127.0.0.1:12351?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536':
+  Duration: N/A, start: 1894.533333, bitrate: N/A
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #1:0[0x100]: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 1894.533333
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+[h264 @ 0x152813990] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x152813990] no frame!
+Input #2, mpegts, from 'udp://127.0.0.1:12352?fifo_size=1024000&overrun_nonfatal=1&timeout=1000000&buffer_size=65536':
+  Duration: N/A, start: 1898.700000, bitrate: N/A
+  Program 1 
+    Metadata:
+      service_name    : Service01
+      service_provider: FFmpeg
+  Stream #2:0[0x100]: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 1898.700000
+MSwitch enabled, initializing...
+Debug: sources_backup = s0=local;s1=local;s2=local
+[MSwitch] Initializing native MSwitch...
+[MSwitch] Parsing sources: s0=local;s1=local;s2=local
+[MSwitch] Successfully parsed 3 sources
+[MSwitch] Configuration: mode=graceful, ingest=hot, sources=3
+[MSwitch] Active source: 0 (s0)
+[MSwitch] Webhook config: enable=1, port=8099
+[MSwitch] Command queue initialized
+[MSwitch] Starting webhook server on port 8099
+[MSwitch] Starting webhook server thread on port 8099
+[MSwitch] Webhook server listening on port 8099
+[MSwitch] Webhook server started on port 8099
+[MSwitch] [DEBUG] Auto-failover initialized: enable=0, recovery_delay=5000
+[MSwitch] [DEBUG] Auto-failover disabled by default
+[MSwitch] Skipping subprocess creation for lavfi inputs
+[MSwitch] Skipping UDP proxy thread for lavfi inputs
+[MSwitch] MSwitch initialized with 3 sources
+[MSwitch] MSwitch proxy listening on ports 12350-12352, forwarding to port 12400
+[MSwitch] Interactive commands: 0-2 (switch source), m (status), ? (help)
+[MSwitch] Starting MSwitch controller
+[MSwitch] Health monitoring thread disabled - using immediate duplicate frame detection
+[MSwitch] MSwitch controller started successfully
+Stream mapping:
+  Stream #0:0 (h264) -> mswitch
+  Stream #1:0 (h264) -> mswitch
+  Stream #2:0 (h264) -> mswitch
+  fps:default -> Stream #0:0 (libx264)
+Press [q] to stop, [?] for help
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Initializing with 3 inputs, tube_size=30
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Configured: 1280x720, active_input=0
+[fc#0 @ 0x15300cc00] [MSwitch] Found mswitch filter, connecting to MSwitch
+[MSwitch] Filter-based switching initialized (streamselect filter attached)
+[MSwitch] Filter setup complete - will use runtime switching via avfilter_process_command
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Startup phase complete - all 3 sources ingested
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 0):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 1 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[libx264 @ 0x111e11220] using SAR=1/1
+[libx264 @ 0x111e11220] using cpu capabilities: ARMv8 NEON DotProd I8MM
+[libx264 @ 0x111e11220] profile Constrained Baseline, level 3.1, 4:2:0, 8-bit
+Output #0, mpegts, to 'test_with_switches.mts':
+  Metadata:
+    encoder         : Lavf62.6.100
+  Stream #0:0: Video: h264, yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 90k tbn
+    Metadata:
+      encoder         : Lavc62.16.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 10):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 20):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 30):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 40):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 50):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 60):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 70):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 80):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 90):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 100):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 110):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 120):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 130):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 140):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 150):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 160):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 170):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 180):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 190):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 200):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 210):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 220):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 230):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 240):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 250):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 260):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 270):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 280):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 290):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 300):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 310):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 320):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 330):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 340):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 350):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 360):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 370):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 380):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 390):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 400):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 410):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 420):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 430):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 440):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 450):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 460):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 470):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 480):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 490):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 500):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 510):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555785634ms, active: 0
+frame=  513 fps=0.0 q=17.0 size=    1280KiB time=00:00:17.10 bitrate= 613.2kbits/s dup=14 drop=0 speed=33.9x elapsed=0:00:00.50    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 520):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+frame=  528 fps=523 q=17.0 size=    1536KiB time=00:00:17.60 bitrate= 714.9kbits/s dup=14 drop=0 speed=17.4x elapsed=0:00:01.00    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 530):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 540):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+frame=  544 fps=360 q=16.0 size=    1536KiB time=00:00:18.13 bitrate= 693.9kbits/s dup=14 drop=0 speed=  12x elapsed=0:00:01.50    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 550):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 2 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[MSwitch] [Webhook] Received request, bytes_read=86
+[MSwitch] [Webhook] Raw request:
+POST /switch/1 HTTP/1.1
+Host: localhost:8099
+User-Agent: curl/8.7.1
+Accept: */*
+
+
+[MSwitch] [Webhook] POST /switch detected
+[MSwitch] [Webhook] Parsing source ID from URL path
+[MSwitch] [Webhook] Extracted source ID from URL: '1'
+[MSwitch] [Webhook] *** ENQUEUING SWITCH TO SOURCE: 1 ***
+[MSwitch] Command enqueued: 1
+[MSwitch] [MSwitch] *** PROCESSING COMMAND: 1 ***
+[MSwitch] Parsed numeric index: 1
+[MSwitch] Switch request: target=1 (1), current=0
+[MSwitch] Switching from source 0 to source 1 (1)
+[MSwitch] Performing graceful switch to source 1
+[MSwitch] >>> mswitch_update_filter_map called: target_index=1, streamselect=0x152815450
+[MSwitch] streamselect filter name: mswitch
+[MSwitch] Calling avfilter_process_command with map_str='1'
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Received command: map = 1 (current active=0)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] ✅ Switched from input 0 to input 1
+[MSwitch] avfilter_process_command returned: 0 (success), response='1'
+[MSwitch] ✓ avfilter_process_command succeeded for map=1
+[MSwitch] [MSwitch] *** SUCCESSFULLY PROCESSED COMMAND: 1 ***
+frame=  559 fps=278 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=9.27x elapsed=0:00:02.01    [Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] ⚡ Switched from input 0 to input 1
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 560):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 1 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 1 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555787640ms, active: 1
+frame=  559 fps=223 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=7.42x elapsed=0:00:02.51    frame=  559 fps=186 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=6.19x elapsed=0:00:03.01    frame=  559 fps=159 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed= 5.3x elapsed=0:00:03.51    frame=  559 fps=139 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=4.63x elapsed=0:00:04.02    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555789655ms, active: 1
+frame=  559 fps=123 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=4.12x elapsed=0:00:04.52    frame=  559 fps=111 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed= 3.7x elapsed=0:00:05.02    frame=  559 fps=101 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=3.37x elapsed=0:00:05.53    frame=  559 fps= 93 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=3.09x elapsed=0:00:06.03    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555791668ms, active: 1
+frame=  559 fps= 85 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=2.85x elapsed=0:00:06.53    frame=  559 fps= 79 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=2.65x elapsed=0:00:07.04    frame=  559 fps= 74 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=2.47x elapsed=0:00:07.54    frame=  559 fps= 69 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=2.31x elapsed=0:00:08.05    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555793687ms, active: 1
+frame=  559 fps= 65 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=2.18x elapsed=0:00:08.55    frame=  559 fps= 62 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=2.06x elapsed=0:00:09.05    frame=  559 fps= 58 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.95x elapsed=0:00:09.56    frame=  559 fps= 56 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.85x elapsed=0:00:10.06    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555795703ms, active: 1
+frame=  559 fps= 53 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.76x elapsed=0:00:10.57    frame=  559 fps= 50 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.68x elapsed=0:00:11.07    frame=  559 fps= 48 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.61x elapsed=0:00:11.58    [MSwitch] [Webhook] Received request, bytes_read=86
+[MSwitch] [Webhook] Raw request:
+POST /switch/2 HTTP/1.1
+Host: localhost:8099
+User-Agent: curl/8.7.1
+Accept: */*
+
+
+[MSwitch] [Webhook] POST /switch detected
+[MSwitch] [Webhook] Parsing source ID from URL path
+[MSwitch] [Webhook] Extracted source ID from URL: '2'
+[MSwitch] [Webhook] *** ENQUEUING SWITCH TO SOURCE: 2 ***
+[MSwitch] Command enqueued: 2
+[MSwitch] [MSwitch] *** PROCESSING COMMAND: 2 ***
+[MSwitch] Parsed numeric index: 2
+[MSwitch] Switch request: target=2 (2), current=1
+[MSwitch] Switching from source 1 to source 2 (2)
+[MSwitch] Performing graceful switch to source 2
+[MSwitch] >>> mswitch_update_filter_map called: target_index=2, streamselect=0x152815450
+[MSwitch] streamselect filter name: mswitch
+[MSwitch] Calling avfilter_process_command with map_str='2'
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Received command: map = 2 (current active=1)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] ✅ Switched from input 1 to input 2
+[MSwitch] avfilter_process_command returned: 0 (success), response='2'
+[MSwitch] ✓ avfilter_process_command succeeded for map=2
+[MSwitch] [MSwitch] *** SUCCESSFULLY PROCESSED COMMAND: 2 ***
+frame=  559 fps= 46 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.54x elapsed=0:00:12.08    [Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] ⚡ Switched from input 1 to input 2
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555797718ms, active: 2
+frame=  559 fps= 44 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.48x elapsed=0:00:12.58    frame=  559 fps= 43 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.42x elapsed=0:00:13.09    frame=  559 fps= 41 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.37x elapsed=0:00:13.59    frame=  559 fps= 40 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.32x elapsed=0:00:14.09    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555799728ms, active: 2
+frame=  559 fps= 38 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.28x elapsed=0:00:14.59    frame=  559 fps= 37 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.23x elapsed=0:00:15.10    frame=  559 fps= 36 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.19x elapsed=0:00:15.60    frame=  559 fps= 35 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.16x elapsed=0:00:16.11    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555801744ms, active: 2
+frame=  559 fps= 34 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.12x elapsed=0:00:16.61    frame=  559 fps= 33 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.09x elapsed=0:00:17.11    frame=  559 fps= 32 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.06x elapsed=0:00:17.61    frame=  559 fps= 31 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=1.03x elapsed=0:00:18.11    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555803752ms, active: 2
+frame=  559 fps= 30 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=   1x elapsed=0:00:18.62    frame=  559 fps= 29 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.974x elapsed=0:00:19.12    frame=  559 fps= 28 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.949x elapsed=0:00:19.63    frame=  559 fps= 28 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.925x elapsed=0:00:20.13    [BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555805769ms, active: 2
+frame=  559 fps= 27 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.903x elapsed=0:00:20.64    frame=  559 fps= 26 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.881x elapsed=0:00:21.14    frame=  559 fps= 26 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.861x elapsed=0:00:21.64    [MSwitch] [Webhook] Received request, bytes_read=86
+[MSwitch] [Webhook] Raw request:
+POST /switch/0 HTTP/1.1
+Host: localhost:8099
+User-Agent: curl/8.7.1
+Accept: */*
+
+
+[MSwitch] [Webhook] POST /switch detected
+[MSwitch] [Webhook] Parsing source ID from URL path
+[MSwitch] [Webhook] Extracted source ID from URL: '0'
+[MSwitch] [Webhook] *** ENQUEUING SWITCH TO SOURCE: 0 ***
+[MSwitch] Command enqueued: 0
+[MSwitch] [MSwitch] *** PROCESSING COMMAND: 0 ***
+[MSwitch] Parsed numeric index: 0
+[MSwitch] Switch request: target=0 (0), current=2
+[MSwitch] Switching from source 2 to source 0 (0)
+[MSwitch] Performing graceful switch to source 0
+[MSwitch] >>> mswitch_update_filter_map called: target_index=0, streamselect=0x152815450
+[MSwitch] streamselect filter name: mswitch
+[MSwitch] Calling avfilter_process_command with map_str='0'
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Received command: map = 0 (current active=2)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] ✅ Switched from input 2 to input 0
+[MSwitch] avfilter_process_command returned: 0 (success), response='0'
+[MSwitch] ✓ avfilter_process_command succeeded for map=0
+[MSwitch] [MSwitch] *** SUCCESSFULLY PROCESSED COMMAND: 0 ***
+frame=  559 fps= 25 q=16.0 size=    1536KiB time=00:00:18.63 bitrate= 675.3kbits/s dup=14 drop=0 speed=0.841x elapsed=0:00:22.14    [Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] ⚡ Switched from input 2 to input 0
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 570):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 580):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555807781ms, active: 0
+frame= 1178 fps= 52 q=17.0 size=    2048KiB time=00:00:39.26 bitrate= 427.3kbits/s dup=14 drop=0 speed=1.73x elapsed=0:00:22.65    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 590):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1193 fps= 52 q=19.0 size=    2048KiB time=00:00:39.76 bitrate= 421.9kbits/s dup=14 drop=0 speed=1.72x elapsed=0:00:23.15    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 600):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 610):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1208 fps= 51 q=17.0 size=    2304KiB time=00:00:40.26 bitrate= 468.7kbits/s dup=14 drop=0 speed= 1.7x elapsed=0:00:23.65    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 620):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1223 fps= 51 q=17.0 size=    2304KiB time=00:00:40.76 bitrate= 463.0kbits/s dup=14 drop=0 speed=1.69x elapsed=0:00:24.16    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 630):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 640):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555809794ms, active: 0
+frame= 1238 fps= 50 q=17.0 size=    2304KiB time=00:00:41.26 bitrate= 457.4kbits/s dup=14 drop=0 speed=1.67x elapsed=0:00:24.66    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 650):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1253 fps= 50 q=19.0 size=    2304KiB time=00:00:41.76 bitrate= 451.9kbits/s dup=14 drop=0 speed=1.66x elapsed=0:00:25.17    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 660):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 670):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1268 fps= 49 q=17.0 size=    2304KiB time=00:00:42.30 bitrate= 446.2kbits/s dup=14 drop=0 speed=1.65x elapsed=0:00:25.67    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 680):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1283 fps= 49 q=17.0 size=    2304KiB time=00:00:42.76 bitrate= 441.3kbits/s dup=14 drop=0 speed=1.63x elapsed=0:00:26.17    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 690):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 700):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555811811ms, active: 0
+frame= 1299 fps= 49 q=17.0 size=    2560KiB time=00:00:43.30 bitrate= 484.3kbits/s dup=14 drop=0 speed=1.62x elapsed=0:00:26.68    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 710):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1314 fps= 48 q=18.0 size=    2560KiB time=00:00:43.80 bitrate= 478.8kbits/s dup=14 drop=0 speed=1.61x elapsed=0:00:27.18    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 720):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 730):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1329 fps= 48 q=17.0 size=    2560KiB time=00:00:44.30 bitrate= 473.4kbits/s dup=14 drop=0 speed= 1.6x elapsed=0:00:27.69    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 740):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1344 fps= 48 q=17.0 size=    2560KiB time=00:00:44.80 bitrate= 468.1kbits/s dup=14 drop=0 speed=1.59x elapsed=0:00:28.19    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 750):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 760):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555813826ms, active: 0
+frame= 1359 fps= 47 q=17.0 size=    2560KiB time=00:00:45.30 bitrate= 462.9kbits/s dup=14 drop=0 speed=1.58x elapsed=0:00:28.69    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 770):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1374 fps= 47 q=18.0 size=    2560KiB time=00:00:45.80 bitrate= 457.9kbits/s dup=14 drop=0 speed=1.57x elapsed=0:00:29.20    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 780):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 790):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1390 fps= 47 q=16.0 size=    2816KiB time=00:00:46.33 bitrate= 497.9kbits/s dup=14 drop=0 speed=1.56x elapsed=0:00:29.70    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 800):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1405 fps= 47 q=16.0 size=    2816KiB time=00:00:46.83 bitrate= 492.6kbits/s dup=14 drop=0 speed=1.55x elapsed=0:00:30.21    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 810):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 820):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555815842ms, active: 0
+frame= 1420 fps= 46 q=16.0 size=    2816KiB time=00:00:47.33 bitrate= 487.4kbits/s dup=14 drop=0 speed=1.54x elapsed=0:00:30.71    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 830):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1435 fps= 46 q=17.0 size=    2816KiB time=00:00:47.83 bitrate= 482.3kbits/s dup=14 drop=0 speed=1.53x elapsed=0:00:31.21    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 840):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 850):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1450 fps= 46 q=16.0 size=    2816KiB time=00:00:48.33 bitrate= 477.3kbits/s dup=14 drop=0 speed=1.52x elapsed=0:00:31.71    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 860):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1465 fps= 45 q=16.0 size=    3072KiB time=00:00:48.83 bitrate= 515.3kbits/s dup=14 drop=0 speed=1.52x elapsed=0:00:32.21    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 870):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 880):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555817853ms, active: 0
+frame= 1480 fps= 45 q=16.0 size=    3072KiB time=00:00:49.33 bitrate= 510.1kbits/s dup=14 drop=0 speed=1.51x elapsed=0:00:32.72    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 890):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1495 fps= 45 q=17.0 size=    3072KiB time=00:00:49.83 bitrate= 505.0kbits/s dup=14 drop=0 speed= 1.5x elapsed=0:00:33.22    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 900):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 910):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1510 fps= 45 q=16.0 size=    3072KiB time=00:00:50.33 bitrate= 500.0kbits/s dup=14 drop=0 speed=1.49x elapsed=0:00:33.73    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 920):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1526 fps= 45 q=17.0 size=    3072KiB time=00:00:50.86 bitrate= 494.7kbits/s dup=14 drop=0 speed=1.49x elapsed=0:00:34.23    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 930):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 940):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555819873ms, active: 0
+frame= 1541 fps= 44 q=17.0 size=    3072KiB time=00:00:51.36 bitrate= 489.9kbits/s dup=14 drop=0 speed=1.48x elapsed=0:00:34.74    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 950):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1556 fps= 44 q=18.0 size=    3328KiB time=00:00:51.86 bitrate= 525.6kbits/s dup=14 drop=0 speed=1.47x elapsed=0:00:35.24    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 960):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 970):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1571 fps= 44 q=17.0 size=    3328KiB time=00:00:52.36 bitrate= 520.6kbits/s dup=14 drop=0 speed=1.46x elapsed=0:00:35.75    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 980):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1586 fps= 44 q=17.0 size=    3328KiB time=00:00:52.86 bitrate= 515.7kbits/s dup=14 drop=0 speed=1.46x elapsed=0:00:36.25    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 990):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1000):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555821889ms, active: 0
+frame= 1601 fps= 44 q=17.0 size=    3328KiB time=00:00:53.36 bitrate= 510.9kbits/s dup=14 drop=0 speed=1.45x elapsed=0:00:36.76    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1010):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1616 fps= 43 q=18.0 size=    3328KiB time=00:00:53.86 bitrate= 506.1kbits/s dup=14 drop=0 speed=1.45x elapsed=0:00:37.26    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1020):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1030):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1631 fps= 43 q=17.0 size=    3584KiB time=00:00:54.36 bitrate= 540.0kbits/s dup=14 drop=0 speed=1.44x elapsed=0:00:37.76    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1040):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1646 fps= 43 q=17.0 size=    3584KiB time=00:00:54.86 bitrate= 535.1kbits/s dup=14 drop=0 speed=1.43x elapsed=0:00:38.26    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1050):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1060):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555823903ms, active: 0
+frame= 1662 fps= 43 q=17.0 size=    3584KiB time=00:00:55.40 bitrate= 530.0kbits/s dup=14 drop=0 speed=1.43x elapsed=0:00:38.77    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1070):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1080):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1677 fps= 43 q=17.0 size=    3584KiB time=00:00:55.90 bitrate= 525.2kbits/s dup=14 drop=0 speed=1.42x elapsed=0:00:39.27    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1090):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1692 fps= 43 q=17.0 size=    3584KiB time=00:00:56.40 bitrate= 520.6kbits/s dup=14 drop=0 speed=1.42x elapsed=0:00:39.78    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1100):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1110):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1707 fps= 42 q=17.0 size=    3584KiB time=00:00:56.90 bitrate= 516.0kbits/s dup=14 drop=0 speed=1.41x elapsed=0:00:40.28    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1120):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[BUFFER_TRACK] FFmpeg - Phase: startup, time: 1759555825922ms, active: 0
+frame= 1722 fps= 42 q=17.0 size=    3840KiB time=00:00:57.40 bitrate= 548.0kbits/s dup=14 drop=0 speed=1.41x elapsed=0:00:40.79    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1130):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1140):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1737 fps= 42 q=17.0 size=    3840KiB time=00:00:57.90 bitrate= 543.3kbits/s dup=14 drop=0 speed= 1.4x elapsed=0:00:41.29    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1150):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1752 fps= 42 q=17.0 size=    3840KiB time=00:00:58.40 bitrate= 538.7kbits/s dup=14 drop=0 speed= 1.4x elapsed=0:00:41.80    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1160):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1170):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 0 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 0 frames queued (active: NO)
+frame= 1767 fps= 42 q=17.0 size=    3840KiB time=00:00:58.90 bitrate= 534.1kbits/s dup=14 drop=0 speed=1.39x elapsed=0:00:42.30    [Parsed_mswitch_0 @ 0x152815450] [MSwitch] Buffer status (frame 1180):
+[Parsed_mswitch_0 @ 0x152815450]   Input 0: 0 frames queued (active: YES)
+[Parsed_mswitch_0 @ 0x152815450]   Input 1: 5 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450]   Input 2: 5 frames queued (active: NO)
+[Parsed_mswitch_0 @ 0x152815450] [MSwitch Filter] Uninitialized
+[out#0/mpegts @ 0x111e09430] Error writing trailer: Immediate exit requested
+[out#0/mpegts @ 0x111e09430] Error closing file: Immediate exit requested
+[out#0/mpegts @ 0x111e09430] video:3517KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 9.181690%
+frame= 1797 fps= 42 q=-1.0 Lsize=    3840KiB time=00:00:59.90 bitrate= 525.2kbits/s dup=14 drop=0 speed=1.41x elapsed=0:00:42.58    
+[libx264 @ 0x111e11220] frame I:30    Avg QP:12.87  size: 26243
+[libx264 @ 0x111e11220] frame P:1767  Avg QP:15.78  size:  1593
+[libx264 @ 0x111e11220] mb I  I16..4: 100.0%  0.0%  0.0%
+[libx264 @ 0x111e11220] mb P  I16..4:  0.3%  0.0%  0.0%  P16..4:  0.4%  0.0%  0.0%  0.0%  0.0%    skip:99.3%
+[libx264 @ 0x111e11220] coded y,uvDC,uvAC intra: 9.4% 9.8% 9.7% inter: 0.3% 0.4% 0.3%
+[libx264 @ 0x111e11220] i16 v,h,dc,p: 92%  5%  2%  0%
+[libx264 @ 0x111e11220] i8c dc,h,v,p: 90%  6%  4%  0%
+[libx264 @ 0x111e11220] kb/s:481.00
+[MSwitch] Stopping MSwitch controller
+[MSwitch] Stopping webhook server
+[MSwitch] Webhook server stopped
+[MSwitch] MSwitch controller stopped
+[MSwitch] Stopping MSwitch controller
+[MSwitch] MSwitch controller stopped
+[MSwitch] Command queue cleaned up
+[MSwitch] MSwitch cleanup completed
+Exiting normally, received signal 15.

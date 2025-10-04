@@ -36,7 +36,7 @@ echo "Expected: ~0.5-1 second total buffer"
 echo "Press Ctrl+C to stop"
 echo ""
 
-# Optimal configuration
+# Optimal configuration with buffer tracking
 timeout 20s ./ffmpeg \
   -fflags nobuffer -flags low_delay \
   -analyzeduration 0 -probesize 32 -max_delay 0 \

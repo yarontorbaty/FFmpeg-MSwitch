@@ -1,0 +1,26 @@
+=========================================
+MSwitch Direct Demuxer - DEBUG TEST
+=========================================
+
+=== Checking if UDP sources are running ===
+
+❌ Port 12350: NOT READY
+❌ Port 12351: NOT READY
+❌ Port 12352: NOT READY
+
+=== Please start UDP sources in 3 separate terminals ===
+
+Terminal 1 (RED):
+./ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -f lavfi -i "aevalsrc=0|0:c=stereo:s=48000" -pix_fmt yuv420p -c:v libx264 -preset ultrafast -tune zerolatency -g 60 -keyint_min 1 -sc_threshold 0 -b:v 1M -c:a aac -f mpegts "udp://127.0.0.1:12350?pkt_size=1316"
+
+Terminal 2 (GREEN):
+./ffmpeg -re -f lavfi -i "color=green:size=1280x720:rate=30" -f lavfi -i "sine=frequency=440:sample_rate=48000" -pix_fmt yuv420p -c:v libx264 -preset ultrafast -tune zerolatency -g 60 -keyint_min 1 -sc_threshold 0 -b:v 1M -c:a aac -f mpegts "udp://127.0.0.1:12351?pkt_size=1316"
+
+Terminal 3 (BLUE):
+./ffmpeg -re -f lavfi -i "color=blue:size=1280x720:rate=30" -f lavfi -i "sine=frequency=880:sample_rate=48000" -pix_fmt yuv420p -c:v libx264 -preset ultrafast -tune zerolatency -g 60 -keyint_min 1 -sc_threshold 0 -b:v 1M -c:a aac -f mpegts "udp://127.0.0.1:12352?pkt_size=1316"
+
+
+=== Skipping cleanup to preserve UDP sources ===
+
+=== Verifying UDP sources after cleanup ===
+❌ Port 12350: NOT READY - please restart
