@@ -58,6 +58,11 @@ char *vstats_filename;
 MSwitchContext global_mswitch_ctx = {0};
 int global_mswitch_enabled = 0;
 
+/* Global metrics for input health monitoring */
+uint64_t global_dup_count = 0;
+uint64_t global_drop_count = 0;
+uint64_t global_packets_written = 0;
+
 float dts_delta_threshold   = 10;
 float dts_error_threshold   = 3600*30;
 
@@ -2141,7 +2146,10 @@ const OptionDef options[] = {
     { "msw.auto.enable",        OPT_TYPE_BOOL, OPT_EXPERT,
         {              &global_mswitch_ctx.auto_failover.enable },
         "enable automatic failover" },
-    { "msw.auto.on",            OPT_TYPE_STRING, OPT_EXPERT,
+    { "msw.auto.recovery_delay", OPT_TYPE_INT, OPT_EXPERT,
+        {              &global_mswitch_ctx.auto_failover.recovery_delay_ms },
+        "recovery delay in milliseconds before allowing failover back", "ms" },
+    { "msw.auto.thresholds",     OPT_TYPE_STRING, OPT_EXPERT,
         {              &global_mswitch_ctx.auto_failover.thresholds },
         "automatic failover thresholds", "thresholds" },
     { "msw.config",             OPT_TYPE_STRING, OPT_EXPERT,

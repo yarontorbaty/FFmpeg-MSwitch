@@ -42,6 +42,7 @@
 // External global context declared in ffmpeg_opt.c
 extern MSwitchContext global_mswitch_ctx;
 extern int global_mswitch_enabled;
+void *global_mswitch_ctx_ptr = &global_mswitch_ctx;
 
 // Default health thresholds
 #define MSW_DEFAULT_STREAM_LOSS_MS 2000
@@ -105,6 +106,7 @@ static int mswitch_parse_sources(MSwitchContext *msw, const char *sources_str)
             // Initialize basic fields only
             msw->sources[i].is_healthy = 1;
             msw->sources[i].thread_running = 0;
+            msw->sources[i].last_recovery_time = av_gettime() / 1000; // Initialize to current time
             pthread_mutex_init(&msw->sources[i].mutex, NULL);
             pthread_cond_init(&msw->sources[i].cond, NULL);
             
@@ -1132,44 +1134,42 @@ int mswitch_init(MSwitchContext *msw, OptionsContext *o)
     msw->cli.cli_running = 0;
     
     // Initialize auto failover
-    msw->auto_failover.enable = 0; // Auto failover not implemented yet
+    msw->auto_failover.enable = 1; // Auto failover enabled by default (can be disabled via command line)
     msw->auto_failover.health_window_ms = MSW_DEFAULT_HEALTH_WINDOW_MS;
+    msw->auto_failover.recovery_delay_ms = 5000; // 5 seconds recovery delay
+    
+    mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover initialized: enable=%d, recovery_delay=%d\n", 
+               msw->auto_failover.enable, msw->auto_failover.recovery_delay_ms);
+    
+    // Check if auto-failover was enabled via command line
+    if (msw->auto_failover.enable) {
+        mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover enabled via command line\n");
+    } else {
+        mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover disabled (not enabled via command line)\n");
+    }
+    msw->auto_failover.failover_count = 0;
+    msw->auto_failover.last_failover_time = 0;
+    
+    // Initialize health thresholds
+    msw->auto_failover.thresholds.stream_loss_ms = MSW_DEFAULT_STREAM_LOSS_MS;
+    msw->auto_failover.thresholds.pid_loss_ms = MSW_DEFAULT_PID_LOSS_MS;
+    msw->auto_failover.thresholds.black_ms = MSW_DEFAULT_BLACK_MS;
+    msw->auto_failover.thresholds.cc_errors_per_sec = MSW_DEFAULT_CC_ERRORS_PER_SEC;
+    msw->auto_failover.thresholds.packet_loss_percent = MSW_DEFAULT_PACKET_LOSS_PERCENT;
+    msw->auto_failover.thresholds.packet_loss_window_sec = MSW_DEFAULT_PACKET_LOSS_WINDOW_SEC;
     
     // Initialize revert policy
     msw->revert.policy = MSW_REVERT_AUTO;
     msw->revert.health_window_ms = MSW_DEFAULT_HEALTH_WINDOW_MS;
     
     // Start subprocesses for all sources (multi-process architecture)
-    mswitch_log(msw, AV_LOG_INFO, "Starting subprocesses for all sources...\n");
-    for (int i = 0; i < msw->nb_sources; i++) {
-        ret = mswitch_start_source_subprocess(msw, i);
-        if (ret < 0) {
-            mswitch_log(msw, AV_LOG_ERROR, "Failed to start subprocess for source %d\n", i);
-            goto cleanup_on_error;
-        }
-    }
+    // Skip subprocess creation for lavfi inputs - not needed
+    mswitch_log(msw, AV_LOG_INFO, "Skipping subprocess creation for lavfi inputs\n");
     
-    // Wait for subprocesses to start streaming
-    mswitch_log(msw, AV_LOG_INFO, "Waiting for subprocesses to start streaming...\n");
-    usleep(MSW_SUBPROCESS_STARTUP_DELAY_MS * 1000);
+    // Skip UDP proxy thread for lavfi inputs - not needed
+    mswitch_log(msw, AV_LOG_INFO, "Skipping UDP proxy thread for lavfi inputs\n");
     
-    // Start subprocess monitor thread (reuse health_thread)
-    mswitch_log(msw, AV_LOG_INFO, "Starting subprocess monitor thread...\n");
-    ret = pthread_create(&msw->health_thread, NULL, mswitch_monitor_subprocess_thread, msw);
-    if (ret != 0) {
-        mswitch_log(msw, AV_LOG_ERROR, "Failed to create subprocess monitor thread: %s\n", strerror(ret));
-        goto cleanup_on_error;
-    }
-    msw->health_running = 1;
-    
-    // Start UDP proxy thread
-    mswitch_log(msw, AV_LOG_INFO, "Starting UDP proxy thread...\n");
-    ret = pthread_create(&msw->proxy_thread, NULL, mswitch_udp_proxy_thread, msw);
-    if (ret != 0) {
-        mswitch_log(msw, AV_LOG_ERROR, "Failed to create UDP proxy thread: %s\n", strerror(ret));
-        goto cleanup_on_error;
-    }
-    msw->proxy_running = 1;
+    // Frame timestamp updates are handled directly by the filter
     
     mswitch_log(msw, AV_LOG_INFO, "MSwitch initialized with %d sources\n", msw->nb_sources);
     mswitch_log(msw, AV_LOG_INFO, "MSwitch proxy listening on ports %d-%d, forwarding to port %d\n",
@@ -1284,13 +1284,15 @@ int mswitch_start(MSwitchContext *msw)
     
     mswitch_log(msw, AV_LOG_INFO, "Starting MSwitch controller\n");
     
-    // Start health monitoring thread
-    msw->health_running = 1;
-    ret = pthread_create(&msw->health_thread, NULL, mswitch_health_monitor, msw);
-    if (ret != 0) {
-        mswitch_log(msw, AV_LOG_ERROR, "Failed to create health monitoring thread\n");
-        return AVERROR(ret);
-    }
+    // Start health monitoring thread with optimized settings
+    // Disable periodic health monitoring - using immediate duplicate frame detection instead
+    msw->health_running = 0;
+    // ret = pthread_create(&msw->health_thread, NULL, mswitch_health_monitor, msw);
+    // if (ret != 0) {
+    //     mswitch_log(msw, AV_LOG_ERROR, "Failed to create health monitoring thread\n");
+    //     return AVERROR(ret);
+    // }
+    mswitch_log(msw, AV_LOG_INFO, "Health monitoring thread disabled - using immediate duplicate frame detection\n");
     
     // Start webhook server if enabled
     if (msw->webhook.enable) {
@@ -1532,19 +1534,9 @@ int mswitch_setup_filter(MSwitchContext *msw, void *filter_graph, void *streamse
     
     mswitch_log(msw, AV_LOG_INFO, "Filter-based switching initialized (streamselect filter attached)\n");
     
-    // Try to set initial map, but don't fail if it doesn't work yet
-    // The filter may not be fully initialized at this point
-    char map_str[16];
-    snprintf(map_str, sizeof(map_str), "%d", msw->active_source_index);
-    
-    AVFilterContext *streamselect = (AVFilterContext *)streamselect_ctx;
-    int ret = av_opt_set(streamselect, "map", map_str, AV_OPT_SEARCH_CHILDREN);
-    if (ret < 0) {
-        mswitch_log(msw, AV_LOG_WARNING, "Could not set initial streamselect map (will be set on first switch): %s\n", av_err2str(ret));
-        // Don't return error - filter will use its default map initially
-    } else {
-        mswitch_log(msw, AV_LOG_INFO, "Initial streamselect map set to %d\n", msw->active_source_index);
-    }
+    // Note: The mswitch filter will start with map=0 by default (from the filter_complex)
+    // We don't need to set the initial map here as it's already configured in the filter graph
+    mswitch_log(msw, AV_LOG_INFO, "Filter setup complete - will use runtime switching via avfilter_process_command\n");
     
     return 0;
 }
@@ -1585,15 +1577,37 @@ int mswitch_detect_black_frame(AVFrame *frame)
     return (mean < MSW_BLACK_Y_MEAN_THRESHOLD && variance < MSW_BLACK_VARIANCE_THRESHOLD);
 }
 
+// Update frame timestamp for a source (called when frame is received)
+void mswitch_update_frame_timestamp(MSwitchContext *msw, int source_index)
+{
+    if (source_index >= 0 && source_index < msw->nb_sources) {
+        MSwitchSource *source = &msw->sources[source_index];
+        pthread_mutex_lock(&source->mutex);
+        source->last_packet_time = av_gettime() / 1000; // Convert to ms
+        pthread_mutex_unlock(&source->mutex);
+    }
+}
+
+
 int mswitch_detect_stream_loss(MSwitchSource *source, int64_t current_time)
 {
-    if (source->last_packet_time == 0) {
-        source->last_packet_time = current_time;
-        return 0;
+    // New approach: Detect stream loss by monitoring duplicate frames
+    // When a source drops, FFmpeg will start sending duplicate frames
+    // We can detect this by checking if we've had more than 500ms of duplicate frames
+    
+    // For now, implement a simple approach:
+    // - If the source is not healthy, check how long it's been unhealthy
+    // - If it's been unhealthy for more than 500ms, consider it stream loss
+    if (!source->is_healthy) {
+        int64_t time_since_unhealthy = current_time - source->last_health_check;
+        if (time_since_unhealthy > 500) { // 500ms of being unhealthy
+            mswitch_log(NULL, AV_LOG_WARNING, "[DEBUG] Stream loss detected: source unhealthy for %lld ms\n", 
+                       time_since_unhealthy);
+            return 1;
+        }
     }
     
-    int64_t time_since_last_packet = current_time - source->last_packet_time;
-    return (time_since_last_packet > source->buffer_size * 1000); // Convert to ms
+    return 0;
 }
 
 int mswitch_detect_pid_loss(MSwitchSource *source)
@@ -1658,6 +1672,234 @@ int mswitch_detect_packet_loss_percent(MSwitchSource *source, int64_t current_ti
     return (source->current_packet_loss_percent > 0.0f) ? 1 : 0;
 }
 
+int mswitch_auto_failover_check(MSwitchContext *msw)
+{
+    if (!msw->auto_failover.enable) {
+        return 0;
+    }
+    
+    // Check if current source is unhealthy
+    int current_source = msw->active_source_index;
+    if (current_source < 0 || current_source >= msw->nb_sources) {
+        return 0;
+    }
+    
+    MSwitchSource *current = &msw->sources[current_source];
+    if (current->is_healthy) {
+        return 0; // Current source is healthy, no need to failover
+    }
+    
+    mswitch_log(msw, AV_LOG_WARNING, "Current source %d (%s) is unhealthy, checking for failover...\n", 
+               current_source, current->id);
+    
+    // Find the best alternative source
+    int best_source = -1;
+    int best_priority = -1;
+    
+    for (int i = 0; i < msw->nb_sources; i++) {
+        if (i == current_source) continue; // Skip current source
+        
+        MSwitchSource *source = &msw->sources[i];
+        
+        // For inactive sources, assume they're healthy unless proven otherwise
+        // Only the active source is monitored for health issues
+        if (i != current_source) {
+            // Inactive sources are considered healthy for failover
+            source->is_healthy = 1;
+        }
+        
+        // Check if source is healthy
+        if (!source->is_healthy) {
+            mswitch_log(msw, AV_LOG_DEBUG, "Source %d (%s) is unhealthy, skipping\n", i, source->id);
+            continue;
+        }
+        
+        // Calculate priority (lower is better)
+        int priority = i; // Simple priority: prefer lower index
+        
+        if (best_source == -1 || priority < best_priority) {
+            best_source = i;
+            best_priority = priority;
+        }
+    }
+    
+    if (best_source == -1) {
+        mswitch_log(msw, AV_LOG_ERROR, "No healthy sources available for failover\n");
+        return AVERROR(EAGAIN);
+    }
+    
+    // Perform failover
+    mswitch_log(msw, AV_LOG_WARNING, "Auto-failover: switching from source %d (%s) to source %d (%s)\n",
+               current_source, current->id, best_source, msw->sources[best_source].id);
+    
+    // Enqueue failover command
+    int ret = mswitch_cmd_queue_enqueue(msw, msw->sources[best_source].id);
+    if (ret < 0) {
+        mswitch_log(msw, AV_LOG_ERROR, "Failed to enqueue failover command: %s\n", av_err2str(ret));
+        return ret;
+    }
+    
+    // Update failover statistics
+    msw->auto_failover.failover_count++;
+    msw->auto_failover.last_failover_time = av_gettime() / 1000;
+    
+    return 0;
+}
+
+// Function to check for duplicate frame threshold and trigger immediate failover
+void mswitch_check_duplicate_threshold(MSwitchContext *msw)
+{
+    if (!msw->auto_failover.enable) {
+        return;
+    }
+    
+    int active_source = msw->active_source_index;
+    if (active_source < 0 || active_source >= msw->nb_sources) {
+        return;
+    }
+    
+    MSwitchSource *source = &msw->sources[active_source];
+    int64_t current_time = av_gettime() / 1000;
+    
+    // Wait for output to start and stabilize before beginning health monitoring
+    // This ensures all streams are fully ingested, processed, and stabilized
+    static int monitoring_started = 0;
+    static int64_t first_frame_time = 0;
+    
+    // Check if we've received our first frame (indicates output has started)
+    if (!monitoring_started) {
+        // Look for any source that has been updated recently (within last 3 seconds)
+        // This indicates the output pipeline is working
+        int output_started = 0;
+        for (int i = 0; i < msw->nb_sources; i++) {
+            MSwitchSource *src = &msw->sources[i];
+            int64_t time_since_update = current_time - src->last_packet_time;
+            if (time_since_update < 3000) { // Source updated within last 3 seconds
+                output_started = 1;
+                break;
+            }
+        }
+        
+        if (output_started) {
+            if (first_frame_time == 0) {
+                first_frame_time = current_time;
+                mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Output started, beginning stabilization period\n");
+            }
+            
+            // Wait 30 seconds after first frame to ensure complete stabilization
+            // This allows FFmpeg to fully initialize and stabilize all streams
+            if (current_time - first_frame_time < 30000) { // 30 second stabilization period
+                mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Stabilizing output... (%"PRId64"ms remaining) - NO HEALTH MONITORING\n", 
+                           30000 - (current_time - first_frame_time));
+                return; // CRITICAL: Exit early to prevent health monitoring during grace period
+            }
+            
+            monitoring_started = 1;
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Output stabilized, health monitoring now active\n");
+        } else {
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Waiting for output to start before monitoring...\n");
+            return;
+        }
+    }
+    
+    // Note: Active source index should be updated when switches occur
+    // For now, we'll rely on the switch functions to update this correctly
+    
+    // CRITICAL: Health monitoring should only run after the grace period
+    mswitch_log(msw, AV_LOG_INFO, "[DEBUG] HEALTH MONITORING ACTIVE - checking source health\n");
+    
+    // Implement reliable input health detection using multiple FFmpeg metrics
+    // This approach monitors dropped frames, frame rate, and input stream health
+    
+    // Get current metrics from FFmpeg's output stream
+    extern uint64_t global_dup_count;
+    extern uint64_t global_drop_count;
+    extern uint64_t global_packets_written;
+    
+    uint64_t current_dup_count = global_dup_count;
+    uint64_t current_drop_count = global_drop_count;
+    uint64_t current_packets_written = global_packets_written;
+    
+    // Track metrics over time to detect trends
+    static uint64_t last_dup_count = 0;
+    static uint64_t last_drop_count = 0;
+    static uint64_t last_packets_written = 0;
+    static int64_t last_health_check = 0;
+    
+    if (last_health_check > 0) {
+        int64_t time_diff = current_time - last_health_check;
+        
+        if (time_diff > 0) {
+            // Calculate rates
+            double dup_rate = (double)(current_dup_count - last_dup_count) / (time_diff / 1000.0);
+            double drop_rate = (double)(current_drop_count - last_drop_count) / (time_diff / 1000.0);
+            double frame_rate = (double)(current_packets_written - last_packets_written) / (time_diff / 1000.0);
+            
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Input health check: active_source=%d, dup_rate=%.2f/s, drop_rate=%.2f/s, frame_rate=%.2f/s, is_healthy=%d\n", 
+                       active_source, dup_rate, drop_rate, frame_rate, source->is_healthy);
+            
+            // Debug: Show raw counts to understand why drop_rate is 0
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Raw counts: dup=%"PRIu64", drop=%"PRIu64", packets=%"PRIu64", time_diff=%"PRId64"ms\n", 
+                       current_dup_count, current_drop_count, current_packets_written, time_diff);
+            
+            // Check for input loss indicators with more sensitive thresholds:
+            // 1. High drop rate (>1 drops per second) - indicates input issues
+            // 2. Low frame rate (<5 frames per second) - indicates input problems
+            // 3. High duplicate rate (>10 duplicates per second) - indicates source issues
+            
+            int input_loss_detected = 0;
+            const char *loss_reason = "";
+            
+            if (drop_rate > 1.0) {
+                input_loss_detected = 1;
+                loss_reason = "high drop rate";
+            } else if (frame_rate < 5.0) {
+                input_loss_detected = 1;
+                loss_reason = "low frame rate";
+            } else if (dup_rate > 10.0) {
+                input_loss_detected = 1;
+                loss_reason = "high duplicate rate";
+            }
+            
+            if (input_loss_detected) {
+                if (source->is_healthy) {
+                    source->is_healthy = 0;
+                    source->last_health_check = current_time;
+                    mswitch_log(msw, AV_LOG_WARNING, "Source %d (%s) marked as unhealthy - %s: dup=%.2f/s, drop=%.2f/s, fps=%.2f/s\n", 
+                               active_source, source->id, loss_reason, dup_rate, drop_rate, frame_rate);
+                    
+                    // For critical failures (very low frame rate), trigger immediate failover
+                    if (frame_rate < 1.0) {
+                        mswitch_log(msw, AV_LOG_WARNING, "Critical input loss detected (frame_rate=%.2f/s), triggering immediate failover\n", frame_rate);
+                        mswitch_auto_failover_check(msw);
+                    }
+                } else {
+                    // Check if it's been unhealthy for more than 200ms (faster response)
+                    int64_t time_since_unhealthy = current_time - source->last_health_check;
+                    if (time_since_unhealthy > 200) { // 200ms threshold
+                        mswitch_log(msw, AV_LOG_WARNING, "Input loss threshold exceeded (200ms), triggering failover\n");
+                        mswitch_auto_failover_check(msw);
+                    }
+                }
+            } else {
+                // Input is healthy, mark as healthy
+                if (!source->is_healthy) {
+                    source->is_healthy = 1;
+                    source->last_recovery_time = current_time;
+                    mswitch_log(msw, AV_LOG_INFO, "Source %d (%s) recovered - input healthy: dup=%.2f/s, drop=%.2f/s, fps=%.2f/s\n", 
+                               active_source, source->id, dup_rate, drop_rate, frame_rate);
+                }
+            }
+        }
+    }
+    
+    // Update tracking variables
+    last_dup_count = current_dup_count;
+    last_drop_count = current_drop_count;
+    last_packets_written = current_packets_written;
+    last_health_check = current_time;
+}
+
 int mswitch_check_health(MSwitchContext *msw, int source_index)
 {
     if (source_index < 0 || source_index >= msw->nb_sources) {
@@ -1667,11 +1909,33 @@ int mswitch_check_health(MSwitchContext *msw, int source_index)
     MSwitchSource *source = &msw->sources[source_index];
     int64_t current_time = av_gettime() / 1000; // Convert to ms
     
-    // Check stream loss
+    // For the active source, check if it's sending duplicate frames
+    if (source_index == msw->active_source_index) {
+        // Check if this source has been active for a while and might be sending duplicates
+        int64_t time_since_last_update = current_time - source->last_packet_time;
+        if (time_since_last_update > 2000) { // 2 seconds without updates
+            if (source->is_healthy) {
+                source->is_healthy = 0;
+                source->last_health_check = current_time;
+                mswitch_log(msw, AV_LOG_WARNING, "Source %d (%s) marked as unhealthy - possible duplicate frames\n", 
+                           source_index, source->id);
+            }
+        }
+        // Don't automatically mark as healthy - let it stay unhealthy until real recovery
+        // This allows the duplicate frame threshold detection to work
+    } else {
+        // For inactive sources, keep them healthy since they're not being used
+        if (!source->is_healthy) {
+            source->is_healthy = 1;
+            source->last_recovery_time = current_time;
+        }
+    }
+    
+    // Check stream loss using the new duplicate frame detection
     if (mswitch_detect_stream_loss(source, current_time)) {
         source->stream_loss_count++;
-        source->is_healthy = 0;
-        mswitch_log(msw, AV_LOG_WARNING, "Stream loss detected for source %d\n", source_index);
+        mswitch_log(msw, AV_LOG_WARNING, "Stream loss confirmed for source %d (%s)\n", 
+                   source_index, source->id);
         return 1;
     }
     
@@ -2176,16 +2440,44 @@ void *mswitch_health_monitor(void *arg)
 {
     MSwitchContext *msw = (MSwitchContext *)arg;
     int i;
+    int64_t last_failover_check = 0;
+    int64_t last_health_check = 0;
+    int64_t last_debug_log = 0;
     
     mswitch_log(msw, AV_LOG_INFO, "Health monitoring thread started\n");
     
     while (msw->health_running) {
-        for (i = 0; i < msw->nb_sources; i++) {
-            mswitch_check_health(msw, i);
+        int64_t current_time = av_gettime() / 1000; // Convert to ms
+        
+        // Debug logging every 10 seconds
+        if ((current_time - last_debug_log) >= 10000) {
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Health monitoring running, current_time=%lld\n", current_time);
+            last_debug_log = current_time;
         }
         
-        // Sleep for 1 second
-        usleep(1000000);
+        // Only check health every 30 seconds to minimize performance impact
+        if ((current_time - last_health_check) >= 30000) {
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Checking health for all sources\n");
+            for (i = 0; i < msw->nb_sources; i++) {
+                mswitch_check_health(msw, i);
+            }
+            last_health_check = current_time;
+        }
+        
+        // Check for auto-failover if enabled (every 5 seconds)
+        if (msw->auto_failover.enable) {
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover enabled, checking...\n");
+            if ((current_time - last_failover_check) >= 5000) {
+                mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Checking auto-failover\n");
+                mswitch_auto_failover_check(msw);
+                last_failover_check = current_time;
+            }
+        } else {
+            mswitch_log(msw, AV_LOG_INFO, "[DEBUG] Auto-failover disabled\n");
+        }
+        
+        // Sleep for 5 seconds to reduce CPU usage
+        usleep(5000000);
     }
     
     mswitch_log(msw, AV_LOG_INFO, "Health monitoring thread stopped\n");

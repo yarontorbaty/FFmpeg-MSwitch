@@ -72,6 +72,7 @@ typedef struct MSwitchSource {
     int is_healthy;
     int64_t last_packet_time;
     int64_t last_health_check;
+    int64_t last_recovery_time;
     
     // Health metrics
     int stream_loss_count;
@@ -140,6 +141,9 @@ typedef struct MSwitchAuto {
     int enable;
     MSwitchHealthThresholds thresholds;
     int health_window_ms;
+    int recovery_delay_ms;
+    int failover_count;
+    int64_t last_failover_time;
 } MSwitchAuto;
 
 typedef struct MSwitchRevertPolicy {
@@ -239,7 +243,10 @@ int mswitch_set_revert(MSwitchContext *msw, MSwitchRevert policy);
 
 // Health monitoring
 int mswitch_check_health(MSwitchContext *msw, int source_index);
+int mswitch_auto_failover_check(MSwitchContext *msw);
+void mswitch_update_frame_timestamp(MSwitchContext *msw, int source_index);
 int mswitch_update_health_metrics(MSwitchContext *msw, int source_index);
+void mswitch_check_duplicate_threshold(MSwitchContext *msw);
 
 // Webhook API
 int mswitch_webhook_start(MSwitchContext *msw);
@@ -285,5 +292,10 @@ int mswitch_setup_filter(MSwitchContext *msw, void *filter_graph, void *streamse
 // Freeze/Black frame generation
 int mswitch_generate_freeze_frame(MSwitchContext *msw, AVFrame *last_frame, int duration_ms);
 int mswitch_generate_black_frame(MSwitchContext *msw, int duration_ms);
+
+// Global metrics for input health monitoring
+extern uint64_t global_dup_count;
+extern uint64_t global_drop_count;
+extern uint64_t global_packets_written;
 
 #endif /* FFTOOLS_FFMPEG_MSWITCH_H */

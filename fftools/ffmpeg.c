@@ -966,6 +966,66 @@ static int transcode(Scheduler *sch)
         // Process MSwitch command queue (thread-safe)
         if (global_mswitch_enabled) {
             mswitch_cmd_queue_process(&global_mswitch_ctx);
+            
+            // Update global metrics from actual FFmpeg output stream
+            // Read comprehensive metrics for input health monitoring
+            for (OutputStream *ost = ost_iter(NULL); ost; ost = ost_iter(ost)) {
+                if (ost->type == AVMEDIA_TYPE_VIDEO && ost->filter) {
+                    // Get comprehensive metrics from the output filter
+                    global_dup_count = atomic_load(&ost->filter->nb_frames_dup);
+                    global_drop_count = atomic_load(&ost->filter->nb_frames_drop);
+                    global_packets_written = atomic_load(&ost->packets_written);
+                    break; // Use the first video output stream
+                }
+            }
+            
+            // Debug MSwitch status every 100 iterations
+            static int buffer_debug_counter = 0;
+            if (++buffer_debug_counter % 100 == 0) {
+                av_log(NULL, AV_LOG_INFO, "[FFmpeg] MSwitch Debug: active_source=%d, auto_failover=%d\n",
+                       global_mswitch_ctx.active_source_index, global_mswitch_ctx.auto_failover.enable);
+            }
+            
+            // Check for duplicate frame threshold and trigger immediate failover
+            mswitch_check_duplicate_threshold(&global_mswitch_ctx);
+            
+            // Update source timestamps to detect when output has started
+            // This is needed to know when to begin duplicate frame monitoring
+            static int64_t last_frame_update = 0;
+            static int monitoring_phase = 0; // 0=startup, 1=monitoring
+            int64_t current_time = av_gettime() / 1000;
+            
+            if (current_time - last_frame_update > 100) { // Update every 100ms
+                if (monitoring_phase == 0) {
+                    // During startup: update all sources to detect when output has started
+                    for (int i = 0; i < global_mswitch_ctx.nb_sources; i++) {
+                        mswitch_update_frame_timestamp(&global_mswitch_ctx, i);
+                    }
+                } else {
+                    // During monitoring: only update inactive sources, not the active one
+                    // This allows the active source to be monitored for duplicate frames
+                    for (int i = 0; i < global_mswitch_ctx.nb_sources; i++) {
+                        if (i != global_mswitch_ctx.active_source_index) {
+                            mswitch_update_frame_timestamp(&global_mswitch_ctx, i);
+                        }
+                    }
+                }
+                last_frame_update = current_time;
+            }
+            
+                // Switch to monitoring phase when health monitoring starts
+                // This happens after the 30-second stabilization period in mswitch_check_duplicate_threshold
+                if (monitoring_phase == 0 && global_mswitch_ctx.auto_failover.enable) {
+                    // Check if we've been running for more than 32 seconds (30s stabilization + 2s buffer)
+                    static int64_t startup_time = 0;
+                    if (startup_time == 0) {
+                        startup_time = current_time;
+                    }
+                    if (current_time - startup_time > 32000) { // 32 seconds after startup
+                        monitoring_phase = 1;
+                        av_log(NULL, AV_LOG_INFO, "[MSwitch] [DEBUG] Switched to monitoring phase - active source will not be updated\n");
+                    }
+                }
         }
 
         /* dump report by using the output first video and audio streams */
