@@ -84,6 +84,12 @@ typedef struct MSwitchDirectContext {
     int control_running;
     
     char *sources_str;  // Comma-separated source URLs
+    
+    // Timestamp normalization
+    int64_t last_output_pts;
+    int64_t last_output_dts;
+    int64_t ts_offset[MAX_SOURCES];  // Offset to add to each source
+    int first_packet;
 } MSwitchDirectContext;
 
 // Global context for CLI control
@@ -379,6 +385,14 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     pthread_mutex_init(&ctx->state_mutex, NULL);
     ctx->active_source_index = 0;
     
+    // Initialize timestamp normalization
+    ctx->first_packet = 1;
+    ctx->last_output_pts = AV_NOPTS_VALUE;
+    ctx->last_output_dts = AV_NOPTS_VALUE;
+    for (i = 0; i < MAX_SOURCES; i++) {
+        ctx->ts_offset[i] = 0;
+    }
+    
     // Set global context for CLI control
     global_mswitchdirect_ctx = ctx;
     
@@ -394,13 +408,57 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     MSwitchDirectContext *ctx = s->priv_data;
     int active_source;
+    int ret;
     
     pthread_mutex_lock(&ctx->state_mutex);
     active_source = ctx->active_source_index;
     pthread_mutex_unlock(&ctx->state_mutex);
     
     // Read from active source's buffer
-    return packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
+    ret = packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    // Normalize timestamps to ensure continuity across switches
+    if (ctx->first_packet) {
+        // First packet ever - set baseline
+        ctx->first_packet = 0;
+        if (pkt->pts != AV_NOPTS_VALUE) {
+            ctx->last_output_pts = pkt->pts;
+        }
+        if (pkt->dts != AV_NOPTS_VALUE) {
+            ctx->last_output_dts = pkt->dts;
+        }
+    } else {
+        // Check if we need to adjust timestamps for this source
+        int64_t expected_dts = ctx->last_output_dts;
+        int64_t actual_dts = (pkt->dts != AV_NOPTS_VALUE) ? pkt->dts : pkt->pts;
+        
+        if (actual_dts != AV_NOPTS_VALUE && expected_dts != AV_NOPTS_VALUE) {
+            // Calculate required offset to make timestamps continuous
+            int64_t required_offset = expected_dts - actual_dts;
+            
+            // If offset is significantly different, we just switched sources
+            if (llabs(required_offset - ctx->ts_offset[active_source]) > 90000) { // ~1 second
+                ctx->ts_offset[active_source] = required_offset;
+                av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Adjusting source %d timestamp offset to %lld\n",
+                       active_source, ctx->ts_offset[active_source]);
+            }
+        }
+        
+        // Apply offset
+        if (pkt->pts != AV_NOPTS_VALUE) {
+            pkt->pts += ctx->ts_offset[active_source];
+            ctx->last_output_pts = pkt->pts;
+        }
+        if (pkt->dts != AV_NOPTS_VALUE) {
+            pkt->dts += ctx->ts_offset[active_source];
+            ctx->last_output_dts = pkt->dts;
+        }
+    }
+    
+    return 0;
 }
 
 // CLI control function - called from ffmpeg.c keyboard handler
