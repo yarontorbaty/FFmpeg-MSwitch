@@ -1,0 +1,363 @@
+ffmpeg version N-121307-g2f2cbc0d50 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 16.0.0 (clang-1600.0.26.6)
+  configuration: --disable-doc --enable-libx264 --enable-encoder=libx264 --enable-encoder=aac --enable-gpl --enable-demuxer=mswitchdirect
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.100 / 62.  6.100
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Initializing with sources: udp://127.0.0.1:12350,udp://127.0.0.1:12351,udp://127.0.0.1:12352
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Opening source 0: udp://127.0.0.1:12350
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[h264 @ 0x13e804a20] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13e804a20] no frame!
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Opening source 1: udp://127.0.0.1:12351
+[MSwitch Direct] Source 0 received first packet
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[h264 @ 0x13df04ad0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13df04ad0] no frame!
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Opening source 2: udp://127.0.0.1:12352
+[MSwitch Direct] Source 1 received first packet
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[h264 @ 0x11fa04d30] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11fa04d30] no frame!
+[MSwitch Direct] Source 2 received first packet
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Auto-failover enabled (timeout: 50ms, check interval: 50ms, grace period: 10000ms)
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Initialized with 3 sources, control port 8099
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] CLI controls: Press 0-2 to switch sources, 'm' for status
+[MSwitch Direct Health] Starting health monitor (timeout: 50ms, check interval: 50ms, grace period: 10000ms)
+Input #0, mswitchdirect, from 'dummy':
+  Duration: N/A, start: 9.433333, bitrate: N/A
+  Stream #0:0: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 9.433333
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0x13df0e8b0] using SAR=1/1
+[libx264 @ 0x13df0e8b0] using cpu capabilities: ARMv8 NEON DotProd I8MM
+[libx264 @ 0x13df0e8b0] profile Constrained Baseline, level 3.1, 4:2:0, 8-bit
+Output #0, mpegts, to '/dev/null':
+  Metadata:
+    encoder         : Lavf62.6.100
+  Stream #0:0: Video: h264, yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 90k tbn
+    Metadata:
+      encoder         : Lavc62.16.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:01.51    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:02.01    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:02.51    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:03.02    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:03.52    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:04.03    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:04.53    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:05.03    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:05.54    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:06.04    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:06.55    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:07.05    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:07.55    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:08.05    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:08.56    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:09.06    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:09.57    [MSwitch Direct Health] Source 0 unhealthy (no packets for 7976ms)
+[MSwitch Direct Health] 🔄 AUTO-FAILOVER: Source 0 → 1 (buffer: 10 packets)
+frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:10.07    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:10.57    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:11.08    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:11.58    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:12.09    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:12.59    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:13.09    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:13.60    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:14.10    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:14.61    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:15.11    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:15.62    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:16.12    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:16.63    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:17.13    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:17.64    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:18.14    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:18.64    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:19.15    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:19.65    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:20.16    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:20.66    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:21.16    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:21.67    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:22.17    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:22.67    frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A elapsed=0:00:23.18    [MSwitch Direct Health] Source 2 unhealthy (no packets for 79ms)
+[mpegts @ 0x13de136d0] Packet corrupt (stream = 0, dts = 1077000).
+[mswitchdirect @ 0x13de132b0] Packet corrupt (stream = 0, dts = 1074000).
+[in#0/mswitchdirect @ 0x13de13050] corrupt input packet in stream 0
+[out#0/mpegts @ 0x13df12930] video:52KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 10.400302%
+frame=   16 fps=0.4 q=-1.0 Lsize=      57KiB time=00:00:02.50 bitrate= 187.1kbits/s speed=0.0573x elapsed=0:00:43.61    
+[libx264 @ 0x13df0e8b0] frame I:1     Avg QP:20.00  size: 18258
+[libx264 @ 0x13df0e8b0] frame P:15    Avg QP:17.53  size:  2313
+[libx264 @ 0x13df0e8b0] mb I  I16..4: 100.0%  0.0%  0.0%
+[libx264 @ 0x13df0e8b0] mb P  I16..4:  0.4%  0.0%  0.0%  P16..4:  1.0%  0.0%  0.0%  0.0%  0.0%    skip:98.6%
+[libx264 @ 0x13df0e8b0] coded y,uvDC,uvAC intra: 6.6% 7.1% 6.9% inter: 0.5% 0.9% 0.5%
+[libx264 @ 0x13df0e8b0] i16 v,h,dc,p: 93%  4%  2%  0%
+[libx264 @ 0x13df0e8b0] i8c dc,h,v,p: 92%  5%  3%  0%
+[libx264 @ 0x13df0e8b0] kb/s:794.40
+[mswitchdirect @ 0x13de132b0] [MSwitch Direct] Closing
+[mpegts @ 0x13de136d0] DTS 126000 < 1077000 out of order
+Exiting normally, received signal 15.

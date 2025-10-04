@@ -1,0 +1,68 @@
+ffmpeg version N-121307-g2f2cbc0d50 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 16.0.0 (clang-1600.0.26.6)
+  configuration: --disable-doc --enable-libx264 --enable-encoder=libx264 --enable-encoder=aac --enable-gpl --enable-demuxer=mswitchdirect
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.100 / 62.  6.100
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Initializing with sources: udp://127.0.0.1:12350,udp://127.0.0.1:12351,udp://127.0.0.1:12352
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Opening source 0: udp://127.0.0.1:12350
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Opening source 1: udp://127.0.0.1:12351
+[MSwitch Direct] Source 0 received first packet
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Opening source 2: udp://127.0.0.1:12352
+[MSwitch Direct] Source 1 received first packet
+[h264 @ 0x11a605bd0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11a605bd0] no frame!
+[h264 @ 0x11a605bd0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x11a605bd0] no frame!
+[MSwitch Direct] Source 2 received first packet
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Auto-failover enabled (timeout: 50ms, check interval: 50ms, grace period: 10000ms)
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Initialized with 3 sources, control port 8099
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] CLI controls: Press 0-2 to switch sources, 'm' for status
+[MSwitch Direct Health] Starting health monitor (timeout: 50ms, check interval: 50ms, grace period: 10000ms)
+Input #0, mswitchdirect, from 'dummy':
+  Duration: N/A, start: 1.400000, bitrate: N/A
+  Stream #0:0: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 1.400000
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0x13b20a3a0] using SAR=1/1
+[libx264 @ 0x13b20a3a0] using cpu capabilities: ARMv8 NEON DotProd I8MM
+[libx264 @ 0x13b20a3a0] profile Constrained Baseline, level 3.1, 4:2:0, 8-bit
+Output #0, mpegts, to '/dev/null':
+  Metadata:
+    encoder         : Lavf62.6.100
+  Stream #0:0: Video: h264, yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 90k tbn
+    Metadata:
+      encoder         : Lavc62.16.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=   63 fps=0.0 q=17.0 size=     199KiB time=00:00:02.10 bitrate= 774.9kbits/s speed=4.19x elapsed=0:00:00.50    frame=   79 fps= 79 q=17.0 size=     239KiB time=00:00:02.63 bitrate= 742.5kbits/s speed=2.62x elapsed=0:00:01.00    frame=   95 fps= 63 q=16.0 size=     256KiB time=00:00:03.16 bitrate= 662.3kbits/s speed= 2.1x elapsed=0:00:01.51    frame=  111 fps= 55 q=21.0 size=     256KiB time=00:00:03.70 bitrate= 566.8kbits/s speed=1.84x elapsed=0:00:02.01    frame=  127 fps= 50 q=17.0 size=     256KiB time=00:00:04.23 bitrate= 495.4kbits/s speed=1.68x elapsed=0:00:02.51    frame=  143 fps= 47 q=16.0 size=     256KiB time=00:00:04.76 bitrate= 440.0kbits/s speed=1.58x elapsed=0:00:03.02    frame=  159 fps= 45 q=17.0 size=     256KiB time=00:00:05.30 bitrate= 395.7kbits/s speed= 1.5x elapsed=0:00:03.52    frame=  174 fps= 43 q=18.0 size=     256KiB time=00:00:05.80 bitrate= 361.6kbits/s speed=1.44x elapsed=0:00:04.02    frame=  190 fps= 42 q=17.0 size=     512KiB time=00:00:06.33 bitrate= 662.3kbits/s speed= 1.4x elapsed=0:00:04.53    frame=  206 fps= 41 q=16.0 size=     512KiB time=00:00:06.86 bitrate= 610.8kbits/s speed=1.36x elapsed=0:00:05.03    frame=  222 fps= 40 q=17.0 size=     512KiB time=00:00:07.40 bitrate= 566.8kbits/s speed=1.34x elapsed=0:00:05.54    frame=  238 fps= 39 q=17.0 size=     512KiB time=00:00:07.93 bitrate= 528.7kbits/s speed=1.31x elapsed=0:00:06.04    frame=  254 fps= 39 q=16.0 size=     512KiB time=00:00:08.46 bitrate= 495.4kbits/s speed=1.29x elapsed=0:00:06.54    frame=  263 fps= 37 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=1.24x elapsed=0:00:07.05    frame=  263 fps= 35 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=1.16x elapsed=0:00:07.55    frame=  263 fps= 33 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=1.09x elapsed=0:00:08.06    frame=  263 fps= 31 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=1.02x elapsed=0:00:08.56    frame=  263 fps= 29 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.967x elapsed=0:00:09.06    frame=  263 fps= 27 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.916x elapsed=0:00:09.57    [MSwitch Direct Health] Source 0 unhealthy (no packets for 3216ms)
+[MSwitch Direct Health] 🔄 AUTO-FAILOVER: Source 0 → 1 (buffer: 100 packets)
+frame=  263 fps= 26 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.87x elapsed=0:00:10.07    frame=  263 fps= 25 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.829x elapsed=0:00:10.57    frame=  263 fps= 24 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.791x elapsed=0:00:11.08    frame=  263 fps= 23 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.757x elapsed=0:00:11.58    frame=  263 fps= 22 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.725x elapsed=0:00:12.09    frame=  263 fps= 21 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.696x elapsed=0:00:12.59    frame=  263 fps= 20 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.669x elapsed=0:00:13.10    frame=  263 fps= 19 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.644x elapsed=0:00:13.60    frame=  263 fps= 19 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.621x elapsed=0:00:14.11    frame=  263 fps= 18 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed= 0.6x elapsed=0:00:14.61    frame=  263 fps= 17 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.58x elapsed=0:00:15.11    frame=  263 fps= 17 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.561x elapsed=0:00:15.62    frame=  263 fps= 16 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.544x elapsed=0:00:16.12    frame=  263 fps= 16 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.527x elapsed=0:00:16.63    frame=  263 fps= 15 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.512x elapsed=0:00:17.13    frame=  263 fps= 15 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.497x elapsed=0:00:17.64    frame=  263 fps= 14 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.483x elapsed=0:00:18.14    frame=  263 fps= 14 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.47x elapsed=0:00:18.65    frame=  263 fps= 14 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.458x elapsed=0:00:19.15    frame=  263 fps= 13 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.446x elapsed=0:00:19.65    frame=  263 fps= 13 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.435x elapsed=0:00:20.16    frame=  263 fps= 13 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.424x elapsed=0:00:20.66    frame=  263 fps= 12 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.414x elapsed=0:00:21.16    frame=  263 fps= 12 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.405x elapsed=0:00:21.67    frame=  263 fps= 12 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.395x elapsed=0:00:22.17    frame=  263 fps= 12 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.386x elapsed=0:00:22.68    frame=  263 fps= 11 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.378x elapsed=0:00:23.18    frame=  263 fps= 11 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.37x elapsed=0:00:23.69    frame=  263 fps= 11 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.362x elapsed=0:00:24.19    frame=  263 fps= 11 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.355x elapsed=0:00:24.70    frame=  263 fps= 10 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.348x elapsed=0:00:25.20    frame=  263 fps= 10 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.341x elapsed=0:00:25.70    [MSwitch Direct Health] Source 1 unhealthy (no packets for 62ms)
+[MSwitch Direct Health] Source 2 unhealthy (no packets for 62ms)
+[MSwitch Direct Health] ⚠️  No healthy sources available!
+frame=  263 fps= 10 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.334x elapsed=0:00:26.20    frame=  263 fps=9.8 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.328x elapsed=0:00:26.71    frame=  263 fps=9.7 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.322x elapsed=0:00:27.21    frame=  263 fps=9.5 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.316x elapsed=0:00:27.72    frame=  263 fps=9.3 q=16.0 size=     768KiB time=00:00:08.76 bitrate= 717.7kbits/s speed=0.311x elapsed=0:00:28.22    [MSwitch Direct Health] Source 1 unhealthy (no packets for 66ms)
+[MSwitch Direct Health] Source 2 unhealthy (no packets for 72ms)
+[MSwitch Direct Health] ⚠️  No healthy sources available!
+[mpegts @ 0x13b007540] Packet corrupt (stream = 0, dts = 981000).
+[mswitchdirect @ 0x13b007030] Packet corrupt (stream = 0, dts = 978000).
+[in#0/mswitchdirect @ 0x13b006dc0] corrupt input packet in stream 0
+[out#0/mpegts @ 0x13b212280] video:746KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 11.676445%
+frame=  284 fps=8.8 q=-1.0 Lsize=     833KiB time=00:00:09.46 bitrate= 721.1kbits/s speed=0.294x elapsed=0:00:32.16    
+[libx264 @ 0x13b20a3a0] frame I:5     Avg QP:15.20  size: 21811
+[libx264 @ 0x13b20a3a0] frame P:279   Avg QP:16.96  size:  2348
+[libx264 @ 0x13b20a3a0] mb I  I16..4: 100.0%  0.0%  0.0%
+[libx264 @ 0x13b20a3a0] mb P  I16..4:  0.4%  0.0%  0.0%  P16..4:  0.6%  0.0%  0.0%  0.0%  0.0%    skip:99.0%
+[libx264 @ 0x13b20a3a0] coded y,uvDC,uvAC intra: 12.4% 12.9% 12.8% inter: 0.3% 0.6% 0.4%
+[libx264 @ 0x13b20a3a0] i16 v,h,dc,p: 90%  7%  2%  0%
+[libx264 @ 0x13b20a3a0] i8c dc,h,v,p: 87%  7%  6%  0%
+[libx264 @ 0x13b20a3a0] kb/s:645.73
+[mswitchdirect @ 0x13b007030] [MSwitch Direct] Closing
+[mpegts @ 0x13b007540] DTS 126000 < 981000 out of order
+Exiting normally, received signal 15.

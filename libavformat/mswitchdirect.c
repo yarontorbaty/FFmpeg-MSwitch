@@ -48,7 +48,7 @@
 #include "url.h"
 
 #define MAX_SOURCES 10
-#define PACKET_BUFFER_SIZE 100
+#define PACKET_BUFFER_SIZE 90  // ~3 seconds at 30fps to cover 2s GOP + buffer for I-frame switching
 #define MSW_CONTROL_PORT_DEFAULT 8099
 
 typedef struct PacketBuffer {
@@ -70,9 +70,10 @@ typedef struct MSwitchSource {
     int source_index;
     
     // Health monitoring
-    int64_t last_packet_time;  // Last time a packet was successfully read
-    int64_t packets_read;      // Total packets read from this source
-    int is_healthy;            // Current health status
+    int64_t last_packet_time;      // Last time a packet was received from UDP (reader thread)
+    int64_t last_consumption_time; // Last time a packet was consumed from buffer (read_packet)
+    int64_t packets_read;          // Total packets read from this source
+    int is_healthy;                // Current health status
 } MSwitchSource;
 
 typedef struct MSwitchDirectContext {
@@ -95,6 +96,13 @@ typedef struct MSwitchDirectContext {
     int64_t last_output_dts;
     int64_t ts_offset[MAX_SOURCES];  // Offset to add to each source
     int first_packet;
+    
+    // Switching control
+    int pending_switch_to;         // -1 = no pending switch, >= 0 = target source
+    int wait_for_iframe;           // Wait for I-frame before switching
+    int64_t pending_switch_time;   // When the pending switch was initiated
+    int last_active_source;        // Track source changes
+    int64_t last_manual_switch_time;  // Time of last manual switch for grace period
     
     // Health monitoring and auto-failover
     int auto_failover_enabled;
@@ -187,6 +195,29 @@ static int packet_buffer_get(PacketBuffer *buf, AVPacket *pkt)
     return 0;
 }
 
+// Non-blocking version for checking if packets are available
+static int packet_buffer_try_get(PacketBuffer *buf, AVPacket *pkt)
+{
+    pthread_mutex_lock(&buf->mutex);
+    
+    // Don't wait, just check if buffer has packets
+    if (buf->count == 0) {
+        pthread_mutex_unlock(&buf->mutex);
+        return AVERROR(EAGAIN);  // No packets available
+    }
+    
+    // Move packet from buffer
+    av_packet_move_ref(pkt, buf->packets[buf->read_index]);
+    av_packet_free(&buf->packets[buf->read_index]);
+    buf->read_index = (buf->read_index + 1) % PACKET_BUFFER_SIZE;
+    buf->count--;
+    
+    pthread_cond_signal(&buf->cond);
+    pthread_mutex_unlock(&buf->mutex);
+    
+    return 0;
+}
+
 // Reader thread - continuously reads from a source into its buffer
 static void *source_reader_thread(void *arg)
 {
@@ -198,7 +229,8 @@ static void *source_reader_thread(void *arg)
         ret = av_read_frame(source->fmt_ctx, pkt);
         if (ret < 0) {
             if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
-                // Restart or continue
+                // No data available - do NOT update last_packet_time
+                // This allows health monitoring to detect source loss
                 av_usleep(10000); // 10ms
                 av_packet_unref(pkt);
                 continue;
@@ -206,10 +238,9 @@ static void *source_reader_thread(void *arg)
             break;
         }
         
-        // Update health stats
+        // Update health stats ONLY on successful read - track when UDP is actively receiving
         source->last_packet_time = av_gettime() / 1000; // Convert to milliseconds
         source->packets_read++;
-        source->is_healthy = 1;
         
         // Log first packet
         if (source->packets_read == 1) {
@@ -261,73 +292,119 @@ static void *health_monitor_thread(void *arg)
             continue;
         }
         
-        // Check health of all sources
-        for (i = 0; i < ctx->num_sources; i++) {
-            MSwitchSource *src = &ctx->sources[i];
-            
-            // Only check health if source has received at least one packet
-            if (src->packets_read == 0) {
-                // Source hasn't received any packets yet
-                // Keep it healthy during grace period, mark unhealthy after
-                if (time_since_startup >= ctx->startup_grace_period_ms + ctx->source_timeout_ms) {
-                    if (src->is_healthy) {
-                        src->is_healthy = 0;
-                        av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d unhealthy (never received packets)\n", i);
-                    }
-                }
-                continue;
-            }
-            
-            int64_t time_since_packet = current_time - src->last_packet_time;
-            
-            // Check buffer status - if buffer has packets, source is actively receiving
-            pthread_mutex_lock(&src->buffer.mutex);
-            int buffer_count = src->buffer.count;
-            pthread_mutex_unlock(&src->buffer.mutex);
-            
-            // Source is healthy if either:
-            // 1. Recently received a packet (within timeout)
-            // 2. Buffer has packets (reader thread is actively working)
-            int is_source_healthy = (time_since_packet <= ctx->source_timeout_ms) || (buffer_count > 0);
-            
-            if (!is_source_healthy) {
-                if (src->is_healthy) {
-                    src->is_healthy = 0;
-                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d unhealthy (no data for %lldms, buffer empty)\n",
-                           i, time_since_packet);
-                }
-            } else {
-                if (!src->is_healthy) {
-                    src->is_healthy = 1;
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d recovered\n", i);
-                }
-            }
-        }
-        
-        // Check if active source is unhealthy
+        // Get active source index
         pthread_mutex_lock(&ctx->state_mutex);
         int active = ctx->active_source_index;
         pthread_mutex_unlock(&ctx->state_mutex);
         
+        // Check health of all sources (except last source which is black interim)
+        int black_source = ctx->num_sources - 1;
+        for (i = 0; i < ctx->num_sources; i++) {
+            MSwitchSource *src = &ctx->sources[i];
+            int is_source_healthy;
+            
+            // Skip health checks for black interim source (last source)
+            if (i == black_source) {
+                src->is_healthy = 1;  // Black file is always healthy
+                continue;
+            }
+            
+            if (i == active) {
+                // Active source: check consumption time
+                // Check if we're within manual switch grace period (3 seconds)
+                int64_t time_since_manual_switch = current_time - ctx->last_manual_switch_time;
+                if (time_since_manual_switch < 3000) {
+                    // Within grace period after manual switch - consider healthy
+                    is_source_healthy = 1;
+                } else if (src->packets_read == 0) {
+                    // Active source hasn't received any packets yet
+                    if (time_since_startup >= ctx->startup_grace_period_ms + ctx->source_timeout_ms) {
+                        is_source_healthy = 0;
+                    } else {
+                        is_source_healthy = 1;  // Still in grace period
+                    }
+                } else if (src->last_packet_time == 0) {
+                    // Active source received packets but consumption time not initialized (shouldn't happen)
+                    is_source_healthy = 1;
+                } else {
+                    // Check time since last consumption
+                    int64_t time_since_packet = current_time - src->last_packet_time;
+                    is_source_healthy = (time_since_packet <= ctx->source_timeout_ms);
+                }
+                
+                // Update health status and log changes
+                if (!is_source_healthy && src->is_healthy) {
+                    src->is_healthy = 0;
+                    if (src->packets_read == 0) {
+                        av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (ACTIVE) unhealthy (never received packets)\n", i);
+                    } else {
+                        int64_t time_since_packet = current_time - src->last_packet_time;
+                        av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (ACTIVE) unhealthy (no data for %lldms)\n",
+                               i, time_since_packet);
+                    }
+                } else if (is_source_healthy && !src->is_healthy) {
+                    src->is_healthy = 1;
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (ACTIVE) recovered\n", i);
+                }
+            } else {
+                // Inactive source: just check if buffer has packets (ready for failover)
+                pthread_mutex_lock(&src->buffer.mutex);
+                int buffer_count = src->buffer.count;
+                pthread_mutex_unlock(&src->buffer.mutex);
+                
+                is_source_healthy = (buffer_count > 0);
+                
+                // Update health status and log changes
+                if (!is_source_healthy && src->is_healthy) {
+                    src->is_healthy = 0;
+                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (inactive) unhealthy (buffer empty)\n", i);
+                } else if (is_source_healthy && !src->is_healthy) {
+                    src->is_healthy = 1;
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (inactive) recovered\n", i);
+                }
+            }
+        }
+        
+        // Check if active source is unhealthy (we already have 'active' from above)
         if (!ctx->sources[active].is_healthy) {
-            // Find best healthy source
+            // Determine failover target based on two-stage strategy:
+            // 1. If active is NOT black file (last source) → failover to black file
+            // 2. If active IS black file → failover to best healthy non-black source
+            int black_source = ctx->num_sources - 1;  // Last source is black file
             best_source = -1;
-            for (i = 0; i < ctx->num_sources; i++) {
-                if (i != active && ctx->sources[i].is_healthy) {
-                    best_source = i;
-                    break;
+            
+            if (active != black_source) {
+                // Stage 1: Primary/backup source failed → switch to black interim
+                best_source = black_source;
+                av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Primary source %d unhealthy, switching to black interim (source %d)\n",
+                       active, best_source);
+            } else {
+                // Stage 2: We're on black file, look for healthy real sources
+                for (i = 0; i < ctx->num_sources - 1; i++) {  // Exclude last source (black file)
+                    if (ctx->sources[i].is_healthy) {
+                        best_source = i;
+                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Found healthy source %d, switching from black interim\n", i);
+                        break;
+                    }
                 }
             }
             
             if (best_source >= 0) {
+                // Set pending switch - actual switch happens in read_packet at I-frame
                 pthread_mutex_lock(&ctx->state_mutex);
-                ctx->active_source_index = best_source;
+                if (ctx->pending_switch_to < 0) {  // No pending switch already
+                    ctx->pending_switch_to = best_source;
+                    ctx->wait_for_iframe = 1;
+                    ctx->pending_switch_time = av_gettime() / 1000;  // Record when switch was initiated
+                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] 🔄 AUTO-FAILOVER pending: Source %d → %d (waiting for I-frame)\n",
+                           active, best_source);
+                }
                 pthread_mutex_unlock(&ctx->state_mutex);
-                
-                av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] 🔄 AUTO-FAILOVER: Source %d → %d\n",
-                       active, best_source);
             } else {
-                av_log(NULL, AV_LOG_ERROR, "[MSwitch Direct Health] ⚠️  No healthy sources available!\n");
+                // No healthy sources and we're on black file - stay on black
+                if (active == black_source) {
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] No healthy sources, staying on black interim\n");
+                }
             }
         }
     }
@@ -432,13 +509,21 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         
         av_log(s, AV_LOG_INFO, "[MSwitch Direct] Opening source %d: %s\n", ctx->num_sources, source_url);
         
+        // Set timeout for UDP sources (in microseconds) and disable DTS checks
+        AVDictionary *opts = NULL;
+        av_dict_set(&opts, "timeout", "100000", 0);  // 100ms timeout for fast failure detection
+        
         // Open input
-        ret = avformat_open_input(&source->fmt_ctx, source_url, NULL, NULL);
+        ret = avformat_open_input(&source->fmt_ctx, source_url, NULL, &opts);
+        av_dict_free(&opts);
         if (ret < 0) {
             av_log(s, AV_LOG_ERROR, "[MSwitch Direct] Failed to open source %d: %s\n", ctx->num_sources, av_err2str(ret));
             av_freep(&sources_copy);
             return ret;
         }
+        
+        // Disable DTS checking to avoid "out of order" warnings when switching sources
+        source->fmt_ctx->flags |= AVFMT_FLAG_IGNDTS;
         
         ret = avformat_find_stream_info(source->fmt_ctx, NULL);
         if (ret < 0) {
@@ -450,6 +535,7 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         // Initialize buffer and health stats
         packet_buffer_init(&source->buffer);
         source->last_packet_time = 0; // Will be set when first packet arrives
+        source->last_consumption_time = 0; // Will be set when first packet consumed
         source->packets_read = 0;
         source->is_healthy = 1; // Assume healthy initially
         
@@ -525,6 +611,12 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         ctx->ts_offset[i] = 0;
     }
     
+    // Initialize switching control
+    ctx->pending_switch_to = -1;
+    ctx->wait_for_iframe = 0;
+    ctx->last_active_source = 0;
+    ctx->last_manual_switch_time = 0;
+    
     // Start health monitoring thread if auto-failover enabled
     if (ctx->auto_failover_enabled) {
         ctx->health_running = 1;
@@ -554,16 +646,217 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
     MSwitchDirectContext *ctx = s->priv_data;
     int active_source;
     int ret;
+    int pending_switch;
+    int is_keyframe;
     
     pthread_mutex_lock(&ctx->state_mutex);
     active_source = ctx->active_source_index;
+    pending_switch = ctx->pending_switch_to;
     pthread_mutex_unlock(&ctx->state_mutex);
     
-    // Read from active source's buffer
-    ret = packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
-    if (ret < 0) {
-        return ret;
+    // If there's a pending switch, try to read from the new source
+    if (pending_switch >= 0) {
+        // Try to get a packet from the pending source (non-blocking)
+        ret = packet_buffer_try_get(&ctx->sources[pending_switch].buffer, pkt);
+        if (ret < 0) {
+            // Pending source has no packets, try current source (also non-blocking to avoid deadlock)
+            av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Pending source %d has no packets (%s), trying source %d\n",
+                   pending_switch, av_err2str(ret), active_source);
+            ret = packet_buffer_try_get(&ctx->sources[active_source].buffer, pkt);
+            if (ret < 0) {
+                // Active source is empty and we have a pending switch - force switch now!
+                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Active source %d empty, forcing switch to %d\n", 
+                       active_source, pending_switch);
+                
+                // Force switch by clearing wait_for_iframe
+                pthread_mutex_lock(&ctx->state_mutex);
+                ctx->wait_for_iframe = 0;
+                pthread_mutex_unlock(&ctx->state_mutex);
+                
+                // Try again to get packet from pending source, this time blocking
+                ret = packet_buffer_get(&ctx->sources[pending_switch].buffer, pkt);
+                if (ret < 0) {
+                    return ret;
+                }
+                
+                // Execute the forced switch - check if packet is a keyframe first
+                is_keyframe = (pkt->flags & AV_PKT_FLAG_KEY);
+                
+                if (!is_keyframe) {
+                    // Not a keyframe - discard and keep waiting
+                    av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Forced switch to non-keyframe packet, discarding and waiting for I-frame\n");
+                    av_packet_unref(pkt);
+                    // Don't reset pending switch, keep waiting for I-frame
+                    return AVERROR(EAGAIN);
+                }
+                
+                // We have an I-frame, execute the switch
+                pthread_mutex_lock(&ctx->state_mutex);
+                ctx->active_source_index = pending_switch;
+                ctx->pending_switch_to = -1;
+                ctx->wait_for_iframe = 0;
+                ctx->first_packet = 1;
+                ctx->last_output_pts = AV_NOPTS_VALUE;
+                ctx->last_output_dts = AV_NOPTS_VALUE;
+                ctx->ts_offset[pending_switch] = 0;
+                pthread_mutex_unlock(&ctx->state_mutex);
+                
+                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ✅ SWITCHED: Source %d → %d (FORCED on I-frame)\n",
+                       active_source, pending_switch);
+                
+                active_source = pending_switch;
+                // Don't return here, continue to timestamp normalization below
+            }
+        } else {
+            // Check if this is an I-frame (keyframe)
+            is_keyframe = (pkt->flags & AV_PKT_FLAG_KEY);
+            
+            // If no keyframe flag, check H.264 NAL units manually for IDR frames
+            if (!is_keyframe && pkt->size > 4) {
+                const uint8_t *data = pkt->data;
+                int size = pkt->size;
+                // Check for NAL unit type 5 (IDR) or 7/8 (SPS/PPS which indicate keyframe)
+                for (int i = 0; i < size - 4; i++) {
+                    if (data[i] == 0 && data[i+1] == 0 && data[i+2] == 1) {
+                        int nal_type = data[i+3] & 0x1F;
+                        if (nal_type == 5 || nal_type == 7 || nal_type == 8) {
+                            is_keyframe = 1;
+                            av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Detected H.264 keyframe NAL type %d in packet\n", nal_type);
+                            break;
+                        }
+                    } else if (data[i] == 0 && data[i+1] == 0 && data[i+2] == 0 && data[i+3] == 1 && i+4 < size) {
+                        int nal_type = data[i+4] & 0x1F;
+                        if (nal_type == 5 || nal_type == 7 || nal_type == 8) {
+                            is_keyframe = 1;
+                            av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Detected H.264 keyframe NAL type %d in packet (4-byte start)\n", nal_type);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Log packet info for debugging
+            static int packet_count = 0;
+            if (packet_count < 20) {  // Log first 20 packets from pending source
+                av_log(s, AV_LOG_INFO, "[MSwitch Direct] Pending source %d packet: flags=0x%x, is_keyframe=%d\n",
+                       pending_switch, pkt->flags, is_keyframe);
+                packet_count++;
+            }
+            
+            // Check if we should force switch due to timeout
+            int64_t current_time = av_gettime() / 1000;
+            int64_t time_waiting = current_time - ctx->pending_switch_time;
+            int force_switch = (time_waiting > 3000);  // Force after 3 seconds
+            
+            if (is_keyframe || !ctx->wait_for_iframe || force_switch) {
+                // Execute the switch
+                pthread_mutex_lock(&ctx->state_mutex);
+                ctx->active_source_index = pending_switch;
+                ctx->pending_switch_to = -1;
+                ctx->wait_for_iframe = 0;
+                
+                // Reset timestamp tracking for new source
+                ctx->first_packet = 1;
+                ctx->last_output_pts = AV_NOPTS_VALUE;
+                ctx->last_output_dts = AV_NOPTS_VALUE;
+                ctx->ts_offset[pending_switch] = 0;
+                
+                pthread_mutex_unlock(&ctx->state_mutex);
+                
+                const char *reason = is_keyframe ? "(I-frame)" : force_switch ? "(timeout)" : "(forced)";
+                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ✅ SWITCHED: Source %d → %d %s (flags=0x%x, waited=%lldms)\n",
+                       active_source, pending_switch, reason, pkt->flags, time_waiting);
+                
+                active_source = pending_switch;
+            } else {
+                // Not an I-frame yet, discard and keep waiting
+                av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Discarding non-keyframe from source %d (flags=0x%x)\n",
+                       pending_switch, pkt->flags);
+                av_packet_unref(pkt);
+                
+                // Fall back to current source for this packet
+                ret = packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
+                if (ret < 0) {
+                    // Current source is also EOF, wait for I-frame or timeout
+                    if (ret == AVERROR_EOF && ctx->auto_failover_enabled) {
+                        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Active source EOF while waiting for I-frame, retrying...\n");
+                        av_usleep(10000);  // Sleep 10ms
+                        return AVERROR(EAGAIN);  // Retry
+                    }
+                    return ret;
+                }
+            }
+        }
+    } else {
+        // No pending switch, normal operation
+        ret = packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
+        if (ret < 0) {
+            // If auto-failover is enabled, trigger immediate failover
+            // But give manual switches a 3-second grace period to buffer
+            if (ret == AVERROR_EOF && ctx->auto_failover_enabled) {
+                int64_t current_time = av_gettime() / 1000;
+                int64_t time_since_manual_switch = current_time - ctx->last_manual_switch_time;
+                
+                if (time_since_manual_switch < 3000) {
+                    // Within grace period after manual switch - allow buffering
+                    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Manual switch grace period (%lldms), waiting for buffer...\n",
+                           time_since_manual_switch);
+                    av_usleep(100000);  // Sleep 100ms
+                    return AVERROR(EAGAIN);
+                }
+                
+                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Active source %d EOF, triggering immediate failover\n", active_source);
+                
+                // Two-stage failover strategy:
+                // 1. If active is NOT black file (last source) → failover to black file
+                // 2. If active IS black file → failover to best healthy non-black source
+                int black_source = ctx->num_sources - 1;  // Last source is black file
+                int best_source = -1;
+                
+                if (active_source != black_source) {
+                    // Stage 1: Primary/backup source failed → switch to black interim
+                    best_source = black_source;
+                    av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Switching to black interim (source %d)\n", best_source);
+                } else {
+                    // Stage 2: We're on black file, look for healthy real sources
+                    for (int i = 0; i < ctx->num_sources - 1; i++) {  // Exclude last source (black file)
+                        if (ctx->sources[i].is_healthy) {
+                            best_source = i;
+                            av_log(s, AV_LOG_INFO, "[MSwitch Direct] Found healthy source %d, switching from black interim\n", i);
+                            break;
+                        }
+                    }
+                }
+                
+                if (best_source >= 0) {
+                    // Set pending switch
+                    pthread_mutex_lock(&ctx->state_mutex);
+                    if (ctx->pending_switch_to < 0) {  // No pending switch already
+                        ctx->pending_switch_to = best_source;
+                        ctx->wait_for_iframe = 1;
+                        ctx->pending_switch_time = av_gettime() / 1000;
+                        pthread_mutex_unlock(&ctx->state_mutex);
+                        av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 🔄 IMMEDIATE FAILOVER: Source %d → %d\n",
+                               active_source, best_source);
+                        // Retry read_packet, which will now hit the pending_switch path
+                        return AVERROR(EAGAIN);
+                    }
+                    pthread_mutex_unlock(&ctx->state_mutex);
+                } else {
+                    // No healthy sources - stay on black if that's where we are
+                    if (active_source == black_source) {
+                        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] No healthy sources, staying on black interim\n");
+                    }
+                    av_usleep(100000);  // Sleep 100ms before retry
+                    return AVERROR(EAGAIN);  // Keep trying
+                }
+            }
+            return ret;
+        }
     }
+    
+    // Update consumption time for health monitoring
+    ctx->sources[active_source].last_consumption_time = av_gettime() / 1000;  // milliseconds
     
     // Normalize timestamps to ensure continuity across switches
     if (ctx->first_packet) {
@@ -622,9 +915,10 @@ int mswitchdirect_cli_switch(int source_index)
     pthread_mutex_lock(&global_mswitchdirect_ctx->state_mutex);
     int old_index = global_mswitchdirect_ctx->active_source_index;
     global_mswitchdirect_ctx->active_source_index = source_index;
+    global_mswitchdirect_ctx->last_manual_switch_time = av_gettime() / 1000;  // Record manual switch time
     pthread_mutex_unlock(&global_mswitchdirect_ctx->state_mutex);
     
-    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct CLI] ⚡ Switched from source %d to %d\n",
+    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct CLI] ⚡ Switched from source %d to %d (manual)\n",
            old_index, source_index);
     
     return 0;
@@ -735,7 +1029,7 @@ static const AVOption mswitchdirect_options[] = {
     { "msw_auto_failover", "Enable automatic failover on source failure", OFFSET(auto_failover_enabled), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, DEC },
     { "msw_health_interval", "Health check interval in milliseconds", OFFSET(health_check_interval_ms), AV_OPT_TYPE_INT, {.i64 = 2000}, 100, 10000, DEC },
     { "msw_source_timeout", "Source timeout in milliseconds before marked unhealthy", OFFSET(source_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 5000}, 1000, 60000, DEC },
-    { "msw_grace_period", "Startup grace period in milliseconds before health checks begin", OFFSET(startup_grace_period_ms), AV_OPT_TYPE_INT, {.i64 = 10000}, 0, 60000, DEC },
+    { "msw_grace_period", "Startup grace period in milliseconds before health checks begin", OFFSET(startup_grace_period_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 60000, DEC },
     { NULL }
 };
 

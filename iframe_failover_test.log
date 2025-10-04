@@ -1,0 +1,309 @@
+ffmpeg version N-121307-g2f2cbc0d50 Copyright (c) 2000-2025 the FFmpeg developers
+  built with Apple clang version 16.0.0 (clang-1600.0.26.6)
+  configuration: --disable-doc --enable-libx264 --enable-encoder=libx264 --enable-encoder=aac --enable-gpl --enable-demuxer=mswitchdirect
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.100 / 62.  6.100
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Initializing with sources: udp://127.0.0.1:12350,udp://127.0.0.1:12351,udp://127.0.0.1:12352
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Opening source 0: udp://127.0.0.1:12350
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[h264 @ 0x13b6048c0] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b6048c0] no frame!
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Opening source 1: udp://127.0.0.1:12351
+[MSwitch Direct] Source 0 received first packet
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[h264 @ 0x15b706470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x15b706470] no frame!
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Opening source 2: udp://127.0.0.1:12352
+[MSwitch Direct] Source 1 received first packet
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[h264 @ 0x13b708470] non-existing PPS 0 referenced
+    Last message repeated 8 times
+[h264 @ 0x13b708470] no frame!
+[MSwitch Direct] Source 2 received first packet
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Auto-failover enabled (timeout: 5000ms, check interval: 2000ms, grace period: 10000ms)
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Initialized with 3 sources, control port 8099
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] CLI controls: Press 0-2 to switch sources, 'm' for status
+[MSwitch Direct Health] Starting health monitor (timeout: 5000ms, check interval: 2000ms, grace period: 10000ms)
+Input #0, mswitchdirect, from 'dummy':
+  Duration: N/A, start: 308.800000, bitrate: N/A
+  Stream #0:0: Video: h264 (Constrained Baseline) ([27][0][0][0] / 0x001B), yuv420p(progressive), 1280x720 [SAR 1:1 DAR 16:9], 30 fps, 30 tbr, 90k tbn, start 308.800000
+Stream mapping:
+  Stream #0:0 -> #0:0 (h264 (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0x15b70d2e0] using SAR=1/1
+[libx264 @ 0x15b70d2e0] using cpu capabilities: ARMv8 NEON DotProd I8MM
+[libx264 @ 0x15b70d2e0] profile Constrained Baseline, level 3.1, 4:2:0, 8-bit
+Output #0, mpegts, to '/dev/null':
+  Metadata:
+    encoder         : Lavf62.6.100
+  Stream #0:0: Video: h264, yuv420p(tv, progressive), 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 30 fps, 90k tbn
+    Metadata:
+      encoder         : Lavc62.16.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=   69 fps=0.0 q=17.0 size=     214KiB time=00:00:02.90 bitrate= 603.2kbits/s speed= 5.8x elapsed=0:00:00.50    frame=   84 fps= 84 q=17.0 size=     252KiB time=00:00:03.40 bitrate= 608.2kbits/s speed=3.38x elapsed=0:00:01.00    frame=   99 fps= 66 q=17.0 size=     256KiB time=00:00:03.90 bitrate= 537.7kbits/s speed=2.58x elapsed=0:00:01.51    frame=  115 fps= 57 q=18.0 size=     256KiB time=00:00:04.43 bitrate= 473.0kbits/s speed= 2.2x elapsed=0:00:02.01    frame=  130 fps= 52 q=17.0 size=     256KiB time=00:00:04.93 bitrate= 425.1kbits/s speed=1.96x elapsed=0:00:02.52    frame=  145 fps= 48 q=17.0 size=     256KiB time=00:00:05.43 bitrate= 386.0kbits/s speed= 1.8x elapsed=0:00:03.02    frame=  160 fps= 45 q=17.0 size=     256KiB time=00:00:05.93 bitrate= 353.5kbits/s speed=1.68x elapsed=0:00:03.53    frame=  175 fps= 43 q=18.0 size=     256KiB time=00:00:06.43 bitrate= 326.0kbits/s speed=1.59x elapsed=0:00:04.03    frame=  190 fps= 42 q=17.0 size=     512KiB time=00:00:06.93 bitrate= 604.9kbits/s speed=1.53x elapsed=0:00:04.53    frame=  205 fps= 41 q=17.0 size=     512KiB time=00:00:07.43 bitrate= 564.3kbits/s speed=1.47x elapsed=0:00:05.04    frame=  220 fps= 40 q=17.0 size=     512KiB time=00:00:07.93 bitrate= 528.7kbits/s speed=1.43x elapsed=0:00:05.54    frame=  232 fps= 38 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=1.38x elapsed=0:00:06.04    frame=  232 fps= 35 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=1.27x elapsed=0:00:06.55    frame=  232 fps= 33 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=1.18x elapsed=0:00:07.05    frame=  232 fps= 31 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed= 1.1x elapsed=0:00:07.55    frame=  232 fps= 29 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=1.03x elapsed=0:00:08.06    frame=  232 fps= 27 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.973x elapsed=0:00:08.56    frame=  232 fps= 26 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.919x elapsed=0:00:09.07    frame=  232 fps= 24 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.87x elapsed=0:00:09.57    frame=  232 fps= 23 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.827x elapsed=0:00:10.08    frame=  232 fps= 22 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.787x elapsed=0:00:10.58    frame=  232 fps= 21 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.752x elapsed=0:00:11.08    frame=  232 fps= 20 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.718x elapsed=0:00:11.59    [MSwitch Direct Health] Source 0 unhealthy (no data for 6097ms, buffer empty)
+[MSwitch Direct Health] 🔄 AUTO-FAILOVER pending: Source 0 → 1 (waiting for I-frame)
+frame=  232 fps= 19 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.688x elapsed=0:00:12.10    frame=  232 fps= 18 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.661x elapsed=0:00:12.60    frame=  232 fps= 18 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.635x elapsed=0:00:13.11    frame=  232 fps= 17 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.612x elapsed=0:00:13.61    frame=  232 fps= 16 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.59x elapsed=0:00:14.12    frame=  232 fps= 16 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.57x elapsed=0:00:14.62    frame=  232 fps= 15 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.551x elapsed=0:00:15.13    frame=  232 fps= 15 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.533x elapsed=0:00:15.63    frame=  232 fps= 14 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.516x elapsed=0:00:16.14    frame=  232 fps= 14 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.501x elapsed=0:00:16.64    frame=  232 fps= 14 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.486x elapsed=0:00:17.15    frame=  232 fps= 13 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.472x elapsed=0:00:17.65    frame=  232 fps= 13 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.459x elapsed=0:00:18.15    frame=  232 fps= 12 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.446x elapsed=0:00:18.66    frame=  232 fps= 12 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.435x elapsed=0:00:19.16    frame=  232 fps= 12 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.424x elapsed=0:00:19.67    frame=  232 fps= 11 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.413x elapsed=0:00:20.17    frame=  232 fps= 11 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.403x elapsed=0:00:20.68    frame=  232 fps= 11 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.393x elapsed=0:00:21.18    frame=  232 fps= 11 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.384x elapsed=0:00:21.69    frame=  232 fps= 10 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.375x elapsed=0:00:22.19    frame=  232 fps= 10 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.367x elapsed=0:00:22.70    frame=  232 fps= 10 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.359x elapsed=0:00:23.20    frame=  232 fps=9.8 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.352x elapsed=0:00:23.70    frame=  232 fps=9.6 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.344x elapsed=0:00:24.21    frame=  232 fps=9.4 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.337x elapsed=0:00:24.71    frame=  232 fps=9.2 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.33x elapsed=0:00:25.21    frame=  232 fps=9.0 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.324x elapsed=0:00:25.72    frame=  232 fps=8.8 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.318x elapsed=0:00:26.22    frame=  232 fps=8.7 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.312x elapsed=0:00:26.73    frame=  232 fps=8.5 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.306x elapsed=0:00:27.23    frame=  232 fps=8.4 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed= 0.3x elapsed=0:00:27.74    frame=  232 fps=8.2 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.295x elapsed=0:00:28.24    frame=  232 fps=8.1 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.29x elapsed=0:00:28.75    frame=  232 fps=7.9 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.285x elapsed=0:00:29.25    frame=  232 fps=7.8 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.28x elapsed=0:00:29.76    frame=  232 fps=7.7 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.275x elapsed=0:00:30.26    frame=  232 fps=7.5 q=20.0 size=     512KiB time=00:00:08.33 bitrate= 503.3kbits/s speed=0.271x elapsed=0:00:30.76    [udp @ 0x13b60d860] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[udp @ 0x13b705350] Circular buffer overrun. To avoid, increase fifo_size URL option. To survive in such case, use overrun_nonfatal option
+[mpegts @ 0x15b613290] Packet corrupt (stream = 0, dts = 28608000).
+[mswitchdirect @ 0x15b704110] Packet corrupt (stream = 0, dts = 28605000).
+[in#0/mswitchdirect @ 0x15b612e70] corrupt input packet in stream 0
+[out#0/mpegts @ 0x15b70bd50] video:673KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 11.551906%
+frame=  253 fps=2.4 q=-1.0 Lsize=     751KiB time=00:00:09.03 bitrate= 681.1kbits/s speed=0.0851x elapsed=0:01:46.16    
+[libx264 @ 0x15b70d2e0] frame I:5     Avg QP:15.20  size: 22637
+[libx264 @ 0x15b70d2e0] frame P:248   Avg QP:16.98  size:  2324
+[libx264 @ 0x15b70d2e0] mb I  I16..4: 100.0%  0.0%  0.0%
+[libx264 @ 0x15b70d2e0] mb P  I16..4:  0.4%  0.0%  0.0%  P16..4:  0.6%  0.0%  0.0%  0.0%  0.0%    skip:99.0%
+[libx264 @ 0x15b70d2e0] coded y,uvDC,uvAC intra: 11.8% 12.3% 12.2% inter: 0.3% 0.6% 0.4%
+[libx264 @ 0x15b70d2e0] i16 v,h,dc,p: 91%  7%  2%  0%
+[libx264 @ 0x15b70d2e0] i8c dc,h,v,p: 88%  7%  5%  0%
+[libx264 @ 0x15b70d2e0] kb/s:654.04
+[mswitchdirect @ 0x15b704110] [MSwitch Direct] Closing
+Exiting normally, received signal 15.
