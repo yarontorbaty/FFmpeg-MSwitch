@@ -74,6 +74,7 @@
 #include "libavutil/time.h"
 
 #include "libavformat/avformat.h"
+#include "libavformat/mswitchdirect.h"
 
 #include "libavdevice/avdevice.h"
 
@@ -876,32 +877,37 @@ static int check_keyboard_interaction(int64_t cur_time)
         );
     }
     
-    // MSwitch commands - send directly to filter
-    if (global_mswitch_filter_ctx && key >= '0' && key <= '9') {
+    // MSwitch Direct demuxer commands (priority 1)
+    if (key >= '0' && key <= '9') {
         int source_index = key - '0';
-        char map_str[16];
-        char response[256];
-        
-        snprintf(map_str, sizeof(map_str), "%d", source_index);
-        
-        // Send command directly to mswitch filter
-        int ret = avfilter_process_command(global_mswitch_filter_ctx, "map", map_str, 
-                                           response, sizeof(response), 0);
-        if (ret < 0) {
-            av_log(NULL, AV_LOG_ERROR, "[MSwitch CLI] Failed to switch to source %d: %s\n", 
-                   source_index, av_err2str(ret));
-        } else {
-            av_log(NULL, AV_LOG_INFO, "[MSwitch CLI] ⚡ Switched to source %d\n", source_index);
+        // Try mswitchdirect demuxer first
+        int ret = mswitchdirect_cli_switch(source_index);
+        if (ret == 0) {
+            // Successfully switched via demuxer
         }
-    }
-    // Legacy MSwitch context commands (fallback)
-    else if (global_mswitch_enabled && !global_mswitch_filter_ctx) {
-        if (key >= '0' && key <= '9') {
-            int source_index = key - '0';
+        // Fallback to mswitch filter
+        else if (global_mswitch_filter_ctx) {
+            char map_str[16];
+            char response[256];
+            
+            snprintf(map_str, sizeof(map_str), "%d", source_index);
+            
+            // Send command directly to mswitch filter
+            ret = avfilter_process_command(global_mswitch_filter_ctx, "map", map_str, 
+                                               response, sizeof(response), 0);
+            if (ret < 0) {
+                av_log(NULL, AV_LOG_ERROR, "[MSwitch CLI] Failed to switch to source %d: %s\n", 
+                       source_index, av_err2str(ret));
+            } else {
+                av_log(NULL, AV_LOG_INFO, "[MSwitch CLI] ⚡ Switched to source %d\n", source_index);
+            }
+        }
+        // Legacy MSwitch context commands (fallback)
+        else if (global_mswitch_enabled) {
             if (source_index < global_mswitch_ctx.nb_sources) {
                 char source_id[8];
                 snprintf(source_id, sizeof(source_id), "s%d", source_index);
-                int ret = mswitch_switch_to(&global_mswitch_ctx, source_id);
+                ret = mswitch_switch_to(&global_mswitch_ctx, source_id);
                 if (ret < 0) {
                     av_log(NULL, AV_LOG_ERROR, "[MSwitch] Failed to switch to source %d\n", source_index);
                 } else {
@@ -914,16 +920,22 @@ static int check_keyboard_interaction(int64_t cur_time)
         }
     }
     
-    // Status command
-    if (key == 'm' && (global_mswitch_filter_ctx || global_mswitch_enabled)) {
-        if (global_mswitch_ctx.nb_sources > 0 && global_mswitch_ctx.active_source_index < global_mswitch_ctx.nb_sources) {
-            const char *active_id = global_mswitch_ctx.sources[global_mswitch_ctx.active_source_index].id;
-            av_log(NULL, AV_LOG_INFO, "[MSwitch] Status: Active source = %d (%s), Total sources = %d\n",
-                   global_mswitch_ctx.active_source_index, 
-                   active_id ? active_id : "unknown",
-                   global_mswitch_ctx.nb_sources);
-        } else {
-            av_log(NULL, AV_LOG_INFO, "[MSwitch] Status: Filter control active\n");
+    // Status command - try mswitchdirect first, then fallback to filter/context
+    if (key == 'm') {
+        // Try mswitchdirect demuxer first
+        mswitchdirect_cli_status();
+        
+        // Also show filter/context status if available
+        if (global_mswitch_filter_ctx || global_mswitch_enabled) {
+            if (global_mswitch_ctx.nb_sources > 0 && global_mswitch_ctx.active_source_index < global_mswitch_ctx.nb_sources) {
+                const char *active_id = global_mswitch_ctx.sources[global_mswitch_ctx.active_source_index].id;
+                av_log(NULL, AV_LOG_INFO, "[MSwitch Filter] Status: Active source = %d (%s), Total sources = %d\n",
+                       global_mswitch_ctx.active_source_index, 
+                       active_id ? active_id : "unknown",
+                       global_mswitch_ctx.nb_sources);
+            } else if (global_mswitch_filter_ctx) {
+                av_log(NULL, AV_LOG_INFO, "[MSwitch Filter] Status: Filter control active\n");
+            }
         }
     }
     
@@ -955,6 +967,7 @@ static int transcode(Scheduler *sch)
     while (!sch_wait(sch, stats_period, &transcode_ts)) {
         int64_t cur_time= av_gettime_relative();
 
+
         if (received_nb_signals)
             break;
 
@@ -966,6 +979,12 @@ static int transcode(Scheduler *sch)
         // Process MSwitch command queue (thread-safe)
         if (global_mswitch_enabled) {
             mswitch_cmd_queue_process(&global_mswitch_ctx);
+            
+            // Buffer dropping is now handled at the filter level for safety
+            // The mswitch filter will aggressively discard frames from inactive inputs
+            
+            // MSwitch seamless switching: allow concurrent decoding of all sources
+            // This enables instant switching by keeping all sources buffered
             
             // Update global metrics from actual FFmpeg output stream
             // Read comprehensive metrics for input health monitoring
@@ -979,12 +998,7 @@ static int transcode(Scheduler *sch)
                 }
             }
             
-            // Debug MSwitch status every 100 iterations
-            static int buffer_debug_counter = 0;
-            if (++buffer_debug_counter % 100 == 0) {
-                av_log(NULL, AV_LOG_INFO, "[FFmpeg] MSwitch Debug: active_source=%d, auto_failover=%d\n",
-                       global_mswitch_ctx.active_source_index, global_mswitch_ctx.auto_failover.enable);
-            }
+    
             
             // Check for duplicate frame threshold and trigger immediate failover
             mswitch_check_duplicate_threshold(&global_mswitch_ctx);
@@ -993,9 +1007,9 @@ static int transcode(Scheduler *sch)
             // This is needed to know when to begin duplicate frame monitoring
             static int64_t last_frame_update = 0;
             static int monitoring_phase = 0; // 0=startup, 1=monitoring
-            int64_t current_time = av_gettime() / 1000;
             
-            if (current_time - last_frame_update > 100) { // Update every 100ms
+            int64_t frame_update_time = av_gettime() / 1000;
+            if (frame_update_time - last_frame_update > 100) { // Update every 100ms
                 if (monitoring_phase == 0) {
                     // During startup: update all sources to detect when output has started
                     for (int i = 0; i < global_mswitch_ctx.nb_sources; i++) {
@@ -1010,7 +1024,7 @@ static int transcode(Scheduler *sch)
                         }
                     }
                 }
-                last_frame_update = current_time;
+                last_frame_update = frame_update_time;
             }
             
                 // Switch to monitoring phase when health monitoring starts
@@ -1019,17 +1033,26 @@ static int transcode(Scheduler *sch)
                     // Check if we've been running for more than 32 seconds (30s stabilization + 2s buffer)
                     static int64_t startup_time = 0;
                     if (startup_time == 0) {
-                        startup_time = current_time;
+                        startup_time = frame_update_time;
                     }
-                    if (current_time - startup_time > 32000) { // 32 seconds after startup
+                    if (frame_update_time - startup_time > 32000) { // 32 seconds after startup
                         monitoring_phase = 1;
-                        av_log(NULL, AV_LOG_INFO, "[MSwitch] [DEBUG] Switched to monitoring phase - active source will not be updated\n");
+                        av_log(NULL, AV_LOG_INFO, "[BUFFER_TRACK] FFmpeg - Switched to monitoring phase at %lldms\n", frame_update_time);
                     }
+                }
+                
+                // Log buffer tracking every 2 seconds
+                static int64_t last_buffer_log = 0;
+                if (frame_update_time - last_buffer_log > 2000) {
+                    av_log(NULL, AV_LOG_INFO, "[BUFFER_TRACK] FFmpeg - Phase: %s, time: %lldms, active: %d\n",
+                           monitoring_phase ? "monitoring" : "startup", frame_update_time, global_mswitch_ctx.active_source_index);
+                    last_buffer_log = frame_update_time;
                 }
         }
 
         /* dump report by using the output first video and audio streams */
         print_report(0, timer_start, cur_time, transcode_ts);
+        
     }
 
     ret = sch_stop(sch, &transcode_ts);

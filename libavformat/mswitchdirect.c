@@ -86,6 +86,13 @@ typedef struct MSwitchDirectContext {
     char *sources_str;  // Comma-separated source URLs
 } MSwitchDirectContext;
 
+// Global context for CLI control
+static MSwitchDirectContext *global_mswitchdirect_ctx = NULL;
+
+// Forward declarations for CLI control functions (defined in mswitchdirect.h)
+int mswitchdirect_cli_switch(int source_index);
+void mswitchdirect_cli_status(void);
+
 // Packet buffer functions
 static void packet_buffer_init(PacketBuffer *buf)
 {
@@ -372,8 +379,13 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     pthread_mutex_init(&ctx->state_mutex, NULL);
     ctx->active_source_index = 0;
     
+    // Set global context for CLI control
+    global_mswitchdirect_ctx = ctx;
+    
     av_log(s, AV_LOG_INFO, "[MSwitch Direct] Initialized with %d sources, control port %d\n", 
            ctx->num_sources, ctx->control_port);
+    av_log(s, AV_LOG_INFO, "[MSwitch Direct] CLI controls: Press 0-%d to switch sources, 'm' for status\n",
+           ctx->num_sources - 1);
     
     return 0;
 }
@@ -391,9 +403,66 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
     return packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
 }
 
+// CLI control function - called from ffmpeg.c keyboard handler
+int mswitchdirect_cli_switch(int source_index)
+{
+    if (!global_mswitchdirect_ctx) {
+        return AVERROR(EINVAL);
+    }
+    
+    if (source_index < 0 || source_index >= global_mswitchdirect_ctx->num_sources) {
+        av_log(NULL, AV_LOG_ERROR, "[MSwitch Direct CLI] Invalid source index %d (valid: 0-%d)\n",
+               source_index, global_mswitchdirect_ctx->num_sources - 1);
+        return AVERROR(EINVAL);
+    }
+    
+    pthread_mutex_lock(&global_mswitchdirect_ctx->state_mutex);
+    int old_index = global_mswitchdirect_ctx->active_source_index;
+    global_mswitchdirect_ctx->active_source_index = source_index;
+    pthread_mutex_unlock(&global_mswitchdirect_ctx->state_mutex);
+    
+    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct CLI] ⚡ Switched from source %d to %d\n",
+           old_index, source_index);
+    
+    return 0;
+}
+
+// CLI status function
+void mswitchdirect_cli_status(void)
+{
+    if (!global_mswitchdirect_ctx) {
+        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct] No demuxer active\n");
+        return;
+    }
+    
+    pthread_mutex_lock(&global_mswitchdirect_ctx->state_mutex);
+    int active = global_mswitchdirect_ctx->active_source_index;
+    int total = global_mswitchdirect_ctx->num_sources;
+    pthread_mutex_unlock(&global_mswitchdirect_ctx->state_mutex);
+    
+    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct] Status: Active source = %d, Total sources = %d\n",
+           active, total);
+    
+    // Show buffer status for each source
+    for (int i = 0; i < total; i++) {
+        MSwitchSource *src = &global_mswitchdirect_ctx->sources[i];
+        pthread_mutex_lock(&src->buffer.mutex);
+        int count = src->buffer.count;
+        pthread_mutex_unlock(&src->buffer.mutex);
+        
+        av_log(NULL, AV_LOG_INFO, "  Source %d: %d packets buffered %s\n",
+               i, count, (i == active) ? "[ACTIVE]" : "");
+    }
+}
+
 static int mswitchdirect_read_close(AVFormatContext *s)
 {
     MSwitchDirectContext *ctx = s->priv_data;
+    
+    // Clear global context
+    if (global_mswitchdirect_ctx == ctx) {
+        global_mswitchdirect_ctx = NULL;
+    }
     int i;
     
     av_log(s, AV_LOG_INFO, "[MSwitch Direct] Closing\n");
