@@ -33,7 +33,7 @@ For the original FFmpeg documentation, see [README_FFMPEG.md](README_FFMPEG.md).
 make -j8
 ```
 
-#### Full Build (All Codecs + SRT)
+#### Full Build (All Codecs + SRT + Filters)
 ```bash
 ./configure \
   --enable-gpl \
@@ -43,6 +43,9 @@ make -j8
   --enable-libx265 \
   --enable-libaom \
   --enable-libsrt \
+  --enable-libfreetype \
+  --enable-libfontconfig \
+  --enable-libharfbuzz \
   --extra-cflags="-I/opt/homebrew/include" \
   --extra-ldflags="-L/opt/homebrew/lib"
 
@@ -60,6 +63,15 @@ make -j8
 - RTSP
 - SRT (Secure Reliable Transport)
 - RTMP
+
+**Video Filters:**
+- All standard FFmpeg filters enabled
+- `drawtext` - Text overlay with TrueType fonts
+- `drawbox` - Draw colored boxes
+- `overlay` - Overlay videos/images
+- `scale` - Resize and format conversion
+- `crop` - Crop video
+- And 400+ more filters
 
 ## Usage
 
