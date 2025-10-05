@@ -713,20 +713,17 @@ static void *control_server_thread(void *arg)
                 ctx->active_source_index = new_source;
                 ctx->last_manual_switch_time = av_gettime() / 1000;  // Record manual switch time
                 
-                // Reset timestamp tracking for clean transition
-                ctx->first_packet = 1;
-                ctx->last_output_pts = AV_NOPTS_VALUE;
-                ctx->last_output_dts = AV_NOPTS_VALUE;
-                ctx->ts_offset[new_source] = 0;
+                // DO NOT reset timestamps - let timestamp normalization handle continuity
+                // This prevents jumps when the new source's buffer has old packets
                 
                 // If clean_switch is enabled, signal decoder flush for smooth transition
                 if (ctx->clean_switch_enabled && old_source != new_source) {
                     ctx->need_decoder_flush = 1;
                     ctx->need_sps_pps_injection = 1;
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (clean_switch enabled, will flush decoder, timestamps reset)\n",
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (clean_switch enabled, will flush decoder)\n",
                            old_source, new_source);
                 } else {
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (immediate, timestamps reset)\n",
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (immediate)\n",
                            old_source, new_source);
                 }
                 pthread_mutex_unlock(&ctx->state_mutex);
