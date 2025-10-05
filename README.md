@@ -27,15 +27,39 @@ For the original FFmpeg documentation, see [README_FFMPEG.md](README_FFMPEG.md).
 
 ### Build Instructions
 
+#### Basic Build (H.264 only)
 ```bash
-# Configure with standard options
 ./configure --enable-gpl --enable-libx264
-
-# Build
 make -j8
-
-# The resulting ffmpeg binary will include mswitchdirect support
 ```
+
+#### Full Build (All Codecs + SRT)
+```bash
+./configure \
+  --enable-gpl \
+  --enable-version3 \
+  --enable-nonfree \
+  --enable-libx264 \
+  --enable-libx265 \
+  --enable-libaom \
+  --enable-libsrt \
+  --extra-cflags="-I/opt/homebrew/include" \
+  --extra-ldflags="-L/opt/homebrew/lib"
+
+make -j8
+```
+
+**Supported Codecs:**
+- H.264/AVC (libx264)
+- HEVC/H.265 (libx265)
+- AV1 (libaom-av1)
+- Hardware acceleration (VideoToolbox on macOS)
+
+**Supported Protocols:**
+- UDP
+- RTSP
+- SRT (Secure Reliable Transport)
+- RTMP
 
 ## Usage
 
@@ -152,6 +176,42 @@ ffmpeg -f mswitchdirect \
   -c:v libx264 -preset medium \
   -c:a aac \
   output.mp4
+```
+
+### Example 5: HEVC/H.265 Output
+
+```bash
+./ffmpeg -f mswitchdirect \
+  -msw_sources "udp://192.168.1.10:5000,udp://192.168.1.11:5000" \
+  -msw_port 8080 \
+  -msw_auto_failover 1 \
+  -i dummy \
+  -c:v libx265 -preset fast -x265-params log-level=error \
+  -f mpegts udp://239.0.0.1:5000
+```
+
+### Example 6: AV1 Encoding
+
+```bash
+./ffmpeg -f mswitchdirect \
+  -msw_sources "udp://source1:5000,udp://source2:5000" \
+  -msw_port 8080 \
+  -i dummy \
+  -c:v libaom-av1 -cpu-used 6 -row-mt 1 \
+  -f mpegts udp://output:5000
+```
+
+### Example 7: SRT Input and Output
+
+```bash
+# SRT sources with SRT output
+./ffmpeg -f mswitchdirect \
+  -msw_sources "srt://192.168.1.10:9000?mode=caller,srt://192.168.1.11:9000?mode=caller" \
+  -msw_port 8080 \
+  -msw_auto_failover 1 \
+  -i dummy \
+  -c:v libx264 -preset ultrafast \
+  -f mpegts "srt://output.server.com:9000?mode=caller&latency=1000"
 ```
 
 ## HTTP Control API
