@@ -140,6 +140,9 @@ typedef struct MSwitchDirectContext {
     
     // Reconnection control
     int reconnect_timeout_ms;      // Timeout for reconnection attempts (0 = infinite, keep trying forever)
+    
+    // Clean switching control
+    int clean_switch_enabled;      // Enable decoder flush + SPS/PPS injection for smooth manual switches
 } MSwitchDirectContext;
 
 // Global context for CLI control
@@ -614,20 +617,25 @@ static void *health_monitor_thread(void *arg)
                     av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (ACTIVE) recovered\n", i);
                 }
             } else {
-                // Inactive source: just check if buffer has packets (ready for failover)
+                // Inactive source: check both buffer and recent packet activity
                 pthread_mutex_lock(&src->buffer.mutex);
                 int buffer_count = src->buffer.count;
                 pthread_mutex_unlock(&src->buffer.mutex);
                 
-                is_source_healthy = (buffer_count > 0);
+                // Consider healthy if either:
+                // 1. Buffer has packets (ready for immediate failover), OR
+                // 2. Received packets recently (actively reconnecting/filling buffer)
+                int64_t time_since_packet = current_time - src->last_packet_time;
+                is_source_healthy = (buffer_count > 0) || (time_since_packet <= ctx->source_timeout_ms);
                 
                 // Update health status and log changes
                 if (!is_source_healthy && src->is_healthy) {
                     src->is_healthy = 0;
-                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (inactive) unhealthy (buffer empty)\n", i);
+                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (inactive) unhealthy (buffer empty, no recent packets)\n", i);
                 } else if (is_source_healthy && !src->is_healthy) {
                     src->is_healthy = 1;
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (inactive) recovered\n", i);
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (inactive) recovered (buffer=%d, last_packet=%lldms ago)\n", 
+                           i, buffer_count, time_since_packet);
                 }
             }
         }
@@ -701,7 +709,26 @@ static void *control_server_thread(void *arg)
             
             if (new_source >= 0 && new_source < ctx->num_sources) {
                 pthread_mutex_lock(&ctx->state_mutex);
+                int old_source = ctx->active_source_index;
                 ctx->active_source_index = new_source;
+                ctx->last_manual_switch_time = av_gettime() / 1000;  // Record manual switch time
+                
+                // Reset timestamp tracking for clean transition
+                ctx->first_packet = 1;
+                ctx->last_output_pts = AV_NOPTS_VALUE;
+                ctx->last_output_dts = AV_NOPTS_VALUE;
+                ctx->ts_offset[new_source] = 0;
+                
+                // If clean_switch is enabled, signal decoder flush for smooth transition
+                if (ctx->clean_switch_enabled && old_source != new_source) {
+                    ctx->need_decoder_flush = 1;
+                    ctx->need_sps_pps_injection = 1;
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (clean_switch enabled, will flush decoder, timestamps reset)\n",
+                           old_source, new_source);
+                } else {
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (immediate, timestamps reset)\n",
+                           old_source, new_source);
+                }
                 pthread_mutex_unlock(&ctx->state_mutex);
                 
                 snprintf(response, sizeof(response),
@@ -1189,13 +1216,18 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
             }
             
             if (best_source >= 0) {
-                // Perform immediate switch using the same logic as manual CLI switch
+                // Perform immediate switch for auto-failover (no flush, no timestamp reset)
+                // This preserves timestamp continuity and allows freeze-frame to work
                 int old_source = ctx->active_source_index;
                 ctx->active_source_index = best_source;
                 ctx->last_manual_switch_time = av_gettime() / 1000;  // Record switch time for grace period
+                
+                // DO NOT reset timestamps for auto-failover - keep continuity
+                // The timestamp normalization code will adjust the offset automatically
+                
                 pthread_mutex_unlock(&ctx->state_mutex);
                 
-                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⚡ AUTO-FAILOVER: Switched from source %d to %d\n",
+                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⚡ AUTO-FAILOVER: Switched from source %d to %d (immediate, preserving timestamps)\n",
                        old_source, best_source);
                 
                 // Return EAGAIN to retry read_packet with new active source
@@ -1509,6 +1541,7 @@ static const AVOption mswitchdirect_options[] = {
     { "msw_source_timeout", "Source timeout in milliseconds before marked unhealthy", OFFSET(source_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 300}, 10, 60000, DEC },
     { "msw_grace_period", "Startup grace period in milliseconds before health checks begin", OFFSET(startup_grace_period_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 60000, DEC },
     { "msw_reconnect_timeout", "Reconnection timeout in milliseconds (0 = infinite, keep trying forever)", OFFSET(reconnect_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 300000, DEC },
+    { "msw_clean_switch", "Enable clean switching with decoder flush and SPS/PPS injection (slower but smoother)", OFFSET(clean_switch_enabled), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC },
     { NULL }
 };
 
