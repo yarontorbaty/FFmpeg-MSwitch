@@ -74,6 +74,10 @@ typedef struct MSwitchSource {
     int64_t last_consumption_time; // Last time a packet was consumed from buffer (read_packet)
     int64_t packets_read;          // Total packets read from this source
     int is_healthy;                // Current health status
+    
+    // Freeze-frame support
+    AVPacket *last_good_packet;    // Last successfully read packet (for freeze-frame on failure)
+    int has_good_packet;           // Whether we have a valid last_good_packet
 } MSwitchSource;
 
 typedef struct MSwitchDirectContext {
@@ -103,6 +107,8 @@ typedef struct MSwitchDirectContext {
     int64_t pending_switch_time;   // When the pending switch was initiated
     int last_active_source;        // Track source changes
     int64_t last_manual_switch_time;  // Time of last manual switch for grace period
+    int freeze_frame_active;       // Currently outputting freeze-frame due to source failure
+    int64_t freeze_frame_duration; // Duration of one frame in timebase units (for timestamp increment)
     
     // Health monitoring and auto-failover
     int auto_failover_enabled;
@@ -539,6 +545,10 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         source->packets_read = 0;
         source->is_healthy = 1; // Assume healthy initially
         
+        // Initialize freeze-frame support
+        source->last_good_packet = NULL;
+        source->has_good_packet = 0;
+        
         // Start reader thread
         source->thread_running = 1;
         pthread_create(&source->reader_thread, NULL, source_reader_thread, source);
@@ -616,6 +626,8 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     ctx->wait_for_iframe = 0;
     ctx->last_active_source = 0;
     ctx->last_manual_switch_time = 0;
+    ctx->freeze_frame_active = 0;
+    ctx->freeze_frame_duration = 3000;  // Default: 30fps = 3000 ticks at 90kHz timebase (will be calculated from actual stream)
     
     // Start health monitoring thread if auto-failover enabled
     if (ctx->auto_failover_enabled) {
@@ -699,6 +711,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 ctx->last_output_pts = AV_NOPTS_VALUE;
                 ctx->last_output_dts = AV_NOPTS_VALUE;
                 ctx->ts_offset[pending_switch] = 0;
+                ctx->freeze_frame_active = 0;  // Exit freeze-frame mode on successful switch
                 pthread_mutex_unlock(&ctx->state_mutex);
                 
                 av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ✅ SWITCHED: Source %d → %d (FORCED on I-frame)\n",
@@ -760,6 +773,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 ctx->last_output_pts = AV_NOPTS_VALUE;
                 ctx->last_output_dts = AV_NOPTS_VALUE;
                 ctx->ts_offset[pending_switch] = 0;
+                ctx->freeze_frame_active = 0;  // Exit freeze-frame mode on successful switch
                 
                 pthread_mutex_unlock(&ctx->state_mutex);
                 
@@ -805,53 +819,85 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                     return AVERROR(EAGAIN);
                 }
                 
-                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Active source %d EOF, triggering immediate failover\n", active_source);
-                
-                // Two-stage failover strategy:
-                // 1. If active is NOT black file (last source) → failover to black file
-                // 2. If active IS black file → failover to best healthy non-black source
-                int black_source = ctx->num_sources - 1;  // Last source is black file
-                int best_source = -1;
-                
-                if (active_source != black_source) {
-                    // Stage 1: Primary/backup source failed → switch to black interim
-                    best_source = black_source;
-                    av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Switching to black interim (source %d)\n", best_source);
+                // Check if we have a last good packet for freeze-frame
+                MSwitchSource *source = &ctx->sources[active_source];
+                if (source->has_good_packet && source->last_good_packet) {
+                    // Enter freeze-frame mode
+                    if (!ctx->freeze_frame_active) {
+                        av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ❄️  Source %d failed, entering FREEZE-FRAME mode\n", active_source);
+                        ctx->freeze_frame_active = 1;
+                        
+                        // Health monitor will find next healthy source in background and set pending_switch_to
+                    }
+                    
+                    // Output the last good packet with incremented timestamps
+                    av_packet_ref(pkt, source->last_good_packet);
+                    
+                    // Increment timestamps to maintain continuity
+                    if (ctx->last_output_pts != AV_NOPTS_VALUE) {
+                        pkt->pts = ctx->last_output_pts + ctx->freeze_frame_duration;
+                    }
+                    if (ctx->last_output_dts != AV_NOPTS_VALUE) {
+                        pkt->dts = ctx->last_output_dts + ctx->freeze_frame_duration;
+                    }
+                    
+                    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] ❄️  Freeze-frame: repeating last packet (pts=%lld, dts=%lld)\n",
+                           pkt->pts, pkt->dts);
+                    
+                    // Don't return here - continue to timestamp normalization below
                 } else {
-                    // Stage 2: We're on black file, look for healthy real sources
-                    for (int i = 0; i < ctx->num_sources - 1; i++) {  // Exclude last source (black file)
-                        if (ctx->sources[i].is_healthy) {
+                    // No last good packet - fall back to finding healthy source immediately
+                    av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Active source %d EOF (no freeze-frame available), triggering immediate failover\n", active_source);
+                    
+                    // Find best healthy source
+                    int best_source = -1;
+                    for (int i = 0; i < ctx->num_sources; i++) {
+                        if (i != active_source && ctx->sources[i].is_healthy) {
                             best_source = i;
-                            av_log(s, AV_LOG_INFO, "[MSwitch Direct] Found healthy source %d, switching from black interim\n", i);
                             break;
                         }
                     }
-                }
-                
-                if (best_source >= 0) {
-                    // Set pending switch
-                    pthread_mutex_lock(&ctx->state_mutex);
-                    if (ctx->pending_switch_to < 0) {  // No pending switch already
-                        ctx->pending_switch_to = best_source;
-                        ctx->wait_for_iframe = 1;
-                        ctx->pending_switch_time = av_gettime() / 1000;
+                    
+                    if (best_source >= 0) {
+                        // Set pending switch
+                        pthread_mutex_lock(&ctx->state_mutex);
+                        if (ctx->pending_switch_to < 0) {  // No pending switch already
+                            ctx->pending_switch_to = best_source;
+                            ctx->wait_for_iframe = 1;
+                            ctx->pending_switch_time = av_gettime() / 1000;
+                            pthread_mutex_unlock(&ctx->state_mutex);
+                            av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 🔄 IMMEDIATE FAILOVER: Source %d → %d\n",
+                                   active_source, best_source);
+                            // Retry read_packet, which will now hit the pending_switch path
+                            return AVERROR(EAGAIN);
+                        }
                         pthread_mutex_unlock(&ctx->state_mutex);
-                        av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 🔄 IMMEDIATE FAILOVER: Source %d → %d\n",
-                               active_source, best_source);
-                        // Retry read_packet, which will now hit the pending_switch path
-                        return AVERROR(EAGAIN);
                     }
-                    pthread_mutex_unlock(&ctx->state_mutex);
-                } else {
-                    // No healthy sources - stay on black if that's where we are
-                    if (active_source == black_source) {
-                        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] No healthy sources, staying on black interim\n");
-                    }
-                    av_usleep(100000);  // Sleep 100ms before retry
-                    return AVERROR(EAGAIN);  // Keep trying
+                    
+                    // No healthy source found, sleep and retry
+                    av_log(s, AV_LOG_WARNING, "[MSwitch Direct] No healthy source available, waiting...\n");
+                    av_usleep(100000);  // Sleep 100ms
+                    return AVERROR(EAGAIN);
                 }
             }
             return ret;
+        } else {
+            // Successfully read packet - store as last good packet for freeze-frame
+            MSwitchSource *source = &ctx->sources[active_source];
+            if (!source->last_good_packet) {
+                source->last_good_packet = av_packet_alloc();
+            }
+            if (source->last_good_packet) {
+                av_packet_unref(source->last_good_packet);
+                av_packet_ref(source->last_good_packet, pkt);
+                source->has_good_packet = 1;
+            }
+            
+            // If we were in freeze-frame mode and now have a real packet, exit freeze-frame
+            if (ctx->freeze_frame_active) {
+                av_log(s, AV_LOG_INFO, "[MSwitch Direct] ✅ Source %d recovered, exiting freeze-frame mode\n", active_source);
+                ctx->freeze_frame_active = 0;
+            }
         }
     }
     
@@ -1010,6 +1056,11 @@ static int mswitchdirect_read_close(AVFormatContext *s)
         
         if (source->fmt_ctx) {
             avformat_close_input(&source->fmt_ctx);
+        }
+        
+        // Free freeze-frame packet
+        if (source->last_good_packet) {
+            av_packet_free(&source->last_good_packet);
         }
         
         av_freep(&source->url);
