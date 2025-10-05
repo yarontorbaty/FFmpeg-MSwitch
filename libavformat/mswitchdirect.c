@@ -380,15 +380,39 @@ static void *source_reader_thread(void *arg)
            source->source_index, source->url);
     
     while (source->thread_running) {
+        // Safety check: if fmt_ctx is NULL (reconnect failed), treat as error and retry
+        if (!source->fmt_ctx) {
+            consecutive_errors++;
+            av_usleep(10000); // Wait 10ms
+            
+            // After 100 consecutive errors (~1 second), try to reconnect
+            if (consecutive_errors >= 100) {
+                // Will trigger reconnection below
+                ret = AVERROR(EIO);
+                goto handle_error;
+            }
+            continue;
+        }
+        
         ret = av_read_frame(source->fmt_ctx, pkt);
+        
+handle_error:
         if (ret < 0) {
-            if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
+            // Treat most errors as recoverable for UDP sources (EOF, EAGAIN, I/O errors)
+            // Only truly fatal errors (like ENOMEM) should exit the thread
+            int is_recoverable = (ret == AVERROR_EOF || 
+                                  ret == AVERROR(EAGAIN) || 
+                                  ret == AVERROR(EIO) ||      // I/O error (common when UDP source stops)
+                                  ret == AVERROR(ETIMEDOUT) ||
+                                  ret == AVERROR(ECONNRESET));
+            
+            if (is_recoverable) {
                 // No data available - do NOT update last_packet_time
                 // This allows health monitoring to detect source loss
                 consecutive_errors++;
                 
                 if (consecutive_errors == 1) {
-                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: First read error: %s\n", 
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Read error: %s (will attempt reconnect)\n", 
                            source->source_index, av_err2str(ret));
                 }
                 
@@ -412,8 +436,8 @@ static void *source_reader_thread(void *arg)
                         }
                     }
                     
-                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Closing and reopening connection...\n", 
-                           source->source_index);
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Closing and reopening connection (consecutive_errors=%d)...\n", 
+                           source->source_index, consecutive_errors);
                     
                     // Close and reopen the source
                     if (source->fmt_ctx) {
@@ -426,19 +450,23 @@ static void *source_reader_thread(void *arg)
                     AVDictionary *opts = NULL;
                     av_dict_set(&opts, "timeout", "100000", 0);  // 100ms timeout
                     
-                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Attempting to open %s...\n", 
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Attempting to open %s...\n", 
                            source->source_index, source->url);
                     
                     ret = avformat_open_input(&source->fmt_ctx, source->url, NULL, &opts);
                     av_dict_free(&opts);
                     
                     if (ret < 0) {
-                        av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Reader] Source %d: Reconnect attempt failed: %s (will retry)\n", 
+                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Reconnect attempt failed: %s (will retry)\n", 
                                source->source_index, av_err2str(ret));
-                        consecutive_errors = 0;  // Reset to try again after another 1 second
-                        av_usleep(1000000); // Wait 1 second before next reconnect attempt
+                        // Set fmt_ctx to NULL since open failed - we'll allocate a new one on next attempt
+                        source->fmt_ctx = NULL;
+                        // DO NOT reset consecutive_errors - keep counting to trigger next reconnect attempt
+                        av_usleep(100000); // Wait 100ms before next attempt
+                        av_packet_unref(pkt);
+                        continue;  // Skip to next iteration, don't try to read from NULL fmt_ctx
                     } else {
-                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: ✅ Reconnected successfully! Finding stream info...\n", 
+                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: ✅ Reconnected successfully! Finding stream info...\n", 
                                source->source_index);
                         
                         // Need to find stream info again after reconnect
@@ -457,7 +485,7 @@ static void *source_reader_thread(void *arg)
                         source->buffer.eof = 0;
                         pthread_mutex_unlock(&source->buffer.mutex);
                         
-                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
+                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
                                source->source_index);
                     }
                 }
@@ -479,9 +507,13 @@ static void *source_reader_thread(void *arg)
         source->last_packet_time = av_gettime() / 1000; // Convert to milliseconds
         source->packets_read++;
         
-        // Log first packet
+        // Log first packet and every 100th packet after reconnection
         if (source->packets_read == 1) {
-            av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct] Source %d received first packet\n", source->source_index);
+            av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Received first packet (size=%d)\n", 
+                   source->source_index, pkt->size);
+        } else if (source->packets_read % 100 == 0) {
+            av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Received %lld packets (latest size=%d)\n", 
+                   source->source_index, source->packets_read, pkt->size);
         }
         
         // Cache SPS/PPS packets for decoder recovery on switch
@@ -709,7 +741,27 @@ static void *control_server_thread(void *arg)
             
             if (new_source >= 0 && new_source < ctx->num_sources) {
                 pthread_mutex_lock(&ctx->state_mutex);
+                
+                // Check if target source is healthy
+                int is_healthy = ctx->sources[new_source].is_healthy;
                 int old_source = ctx->active_source_index;
+                
+                if (!is_healthy) {
+                    pthread_mutex_unlock(&ctx->state_mutex);
+                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct HTTP] Cannot switch to source %d - source is UNHEALTHY\n",
+                           new_source);
+                    
+                    snprintf(response, sizeof(response),
+                             "HTTP/1.1 503 Service Unavailable\r\n"
+                             "Content-Type: application/json\r\n"
+                             "Content-Length: 45\r\n"
+                             "\r\n"
+                             "{\"error\":\"Source is unhealthy or offline\"}");
+                    write(client_socket, response, strlen(response));
+                    close(client_socket);
+                    continue;
+                }
+                
                 ctx->active_source_index = new_source;
                 ctx->last_manual_switch_time = av_gettime() / 1000;  // Record manual switch time
                 
