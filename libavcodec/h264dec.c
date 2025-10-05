@@ -1051,7 +1051,7 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
             default: nal_type_name = "OTHER"; break;
         }
         
-        av_log(avctx, AV_LOG_INFO, "[H264 DECODER INPUT] NAL type %d (%s) | Size: %d bytes | PTS: %lld | Flags: 0x%x\n",
+        av_log(avctx, AV_LOG_DEBUG, "[H264 DECODER INPUT] NAL type %d (%s) | Size: %d bytes | PTS: %lld | Flags: 0x%x\n",
                nal_type, nal_type_name, buf_size, avpkt->pts, avpkt->flags);
     }
 
@@ -1068,11 +1068,11 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
     if (av_packet_get_side_data(avpkt, AV_PKT_DATA_NEW_EXTRADATA, NULL)) {
         size_t side_size;
         uint8_t *side = av_packet_get_side_data(avpkt, AV_PKT_DATA_NEW_EXTRADATA, &side_size);
-        av_log(avctx, AV_LOG_INFO, "[H264 DECODER] Processing NEW_EXTRADATA side data (size=%zu)\n", side_size);
+        av_log(avctx, AV_LOG_DEBUG, "[H264 DECODER] Processing NEW_EXTRADATA side data (size=%zu)\n", side_size);
         ff_h264_decode_extradata(side, side_size,
                                  &h->ps, &h->is_avc, &h->nal_length_size,
                                  avctx->err_recognition, avctx);
-        av_log(avctx, AV_LOG_INFO, "[H264 DECODER] Extradata processed, SPS present: %d, PPS present: %d\n", 
+        av_log(avctx, AV_LOG_DEBUG, "[H264 DECODER] Extradata processed, SPS present: %d, PPS present: %d\n", 
                h->ps.sps != NULL, h->ps.pps != NULL);
     }
     if (h->is_avc && buf_size >= 9 && buf[0]==1 && buf[2]==0 && (buf[4]&0xFC)==0xFC) {

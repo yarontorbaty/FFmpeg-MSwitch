@@ -325,11 +325,11 @@ static int packet_buffer_get_from_iframe(PacketBuffer *buf, AVPacket *pkt)
     if (buf->has_iframe && buf->last_iframe_index >= 0) {
         // Prefer to start from SPS/PPS if we have it, otherwise start from I-frame
         if (buf->last_sps_pps_index >= 0) {
-            av_log(NULL, AV_LOG_INFO, "[PacketBuffer] Rewinding to SPS/PPS at index %d (I-frame at %d)\n", 
+            av_log(NULL, AV_LOG_DEBUG, "[PacketBuffer] Rewinding to SPS/PPS at index %d (I-frame at %d)\n", 
                    buf->last_sps_pps_index, buf->last_iframe_index);
             buf->read_index = buf->last_sps_pps_index;
         } else {
-            av_log(NULL, AV_LOG_INFO, "[PacketBuffer] Rewinding to I-frame at index %d (no SPS/PPS tracked)\n", 
+            av_log(NULL, AV_LOG_DEBUG, "[PacketBuffer] Rewinding to I-frame at index %d (no SPS/PPS tracked)\n", 
                    buf->last_iframe_index);
             buf->read_index = buf->last_iframe_index;
         }
@@ -376,7 +376,7 @@ static void *source_reader_thread(void *arg)
     int ret;
     int consecutive_errors = 0;
     
-    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Reader thread started for %s\n", 
+    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Reader thread started for %s\n", 
            source->source_index, source->url);
     
     while (source->thread_running) {
@@ -412,7 +412,7 @@ static void *source_reader_thread(void *arg)
                         }
                     }
                     
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Closing and reopening connection...\n", 
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Closing and reopening connection...\n", 
                            source->source_index);
                     
                     // Close and reopen the source
@@ -426,7 +426,7 @@ static void *source_reader_thread(void *arg)
                     AVDictionary *opts = NULL;
                     av_dict_set(&opts, "timeout", "100000", 0);  // 100ms timeout
                     
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Attempting to open %s...\n", 
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Attempting to open %s...\n", 
                            source->source_index, source->url);
                     
                     ret = avformat_open_input(&source->fmt_ctx, source->url, NULL, &opts);
@@ -438,7 +438,7 @@ static void *source_reader_thread(void *arg)
                         consecutive_errors = 0;  // Reset to try again after another 1 second
                         av_usleep(1000000); // Wait 1 second before next reconnect attempt
                     } else {
-                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: ✅ Reconnected successfully! Finding stream info...\n", 
+                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: ✅ Reconnected successfully! Finding stream info...\n", 
                                source->source_index);
                         
                         // Need to find stream info again after reconnect
@@ -457,7 +457,7 @@ static void *source_reader_thread(void *arg)
                         source->buffer.eof = 0;
                         pthread_mutex_unlock(&source->buffer.mutex);
                         
-                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
+                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
                                source->source_index);
                     }
                 }
@@ -481,7 +481,7 @@ static void *source_reader_thread(void *arg)
         
         // Log first packet
         if (source->packets_read == 1) {
-            av_log(NULL, AV_LOG_INFO, "[MSwitch Direct] Source %d received first packet\n", source->source_index);
+            av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct] Source %d received first packet\n", source->source_index);
         }
         
         // Cache SPS/PPS packets for decoder recovery on switch
@@ -548,7 +548,7 @@ static void *health_monitor_thread(void *arg)
     int64_t current_time;
     int i, best_source;
     
-    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Starting health monitor (timeout: %dms, check interval: %dms, grace period: %dms)\n",
+    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Starting health monitor (timeout: %dms, check interval: %dms, grace period: %dms)\n",
            ctx->source_timeout_ms, ctx->health_check_interval_ms, ctx->startup_grace_period_ms);
     
     while (ctx->health_running) {
@@ -614,7 +614,7 @@ static void *health_monitor_thread(void *arg)
                     }
                 } else if (is_source_healthy && !src->is_healthy) {
                     src->is_healthy = 1;
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (ACTIVE) recovered\n", i);
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Source %d (ACTIVE) recovered\n", i);
                 }
             } else {
                 // Inactive source: check both buffer and recent packet activity
@@ -634,7 +634,7 @@ static void *health_monitor_thread(void *arg)
                     av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (inactive) unhealthy (buffer empty, no recent packets)\n", i);
                 } else if (is_source_healthy && !src->is_healthy) {
                     src->is_healthy = 1;
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (inactive) recovered (buffer=%d, last_packet=%lldms ago)\n", 
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Source %d (inactive) recovered (buffer=%d, last_packet=%lldms ago)\n", 
                            i, buffer_count, time_since_packet);
                 }
             }
@@ -648,7 +648,7 @@ static void *health_monitor_thread(void *arg)
             for (i = 0; i < ctx->num_sources; i++) {
                 if (i != active && ctx->sources[i].is_healthy) {
                     best_source = i;
-                    av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Found healthy source %d for failover\n", i);
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Found healthy source %d for failover\n", i);
                     break;
                 }
             }
@@ -656,7 +656,7 @@ static void *health_monitor_thread(void *arg)
             if (best_source >= 0) {
                 // Just log that a healthy source is available
                 // The actual switch will happen in read_packet when it detects unhealthy source
-                av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Healthy source %d available for auto-failover\n", best_source);
+                av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Healthy source %d available for auto-failover\n", best_source);
             } else {
                 av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] No healthy sources available for failover\n");
             }
@@ -765,7 +765,7 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     char *sources_copy, *source_url, *saveptr;
     int ret, i;
     
-    av_log(s, AV_LOG_INFO, "[MSwitch Direct] Initializing with sources: %s\n", ctx->sources_str);
+    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Initializing with sources: %s\n", ctx->sources_str);
     
     // Parse sources
     sources_copy = av_strdup(ctx->sources_str);
@@ -782,7 +782,7 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         source->parent_ctx = ctx;  // Set parent context for reconnection timeout access
         source->reconnect_start_time = 0;  // Initialize reconnection timer
         
-        av_log(s, AV_LOG_INFO, "[MSwitch Direct] Opening source %d: %s\n", ctx->num_sources, source_url);
+        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Opening source %d: %s\n", ctx->num_sources, source_url);
         
         // Set timeout for UDP sources (in microseconds) and disable DTS checks
         AVDictionary *opts = NULL;
@@ -828,7 +828,7 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         if (source->fmt_ctx->nb_streams > 0) {
             AVCodecParameters *codecpar = source->fmt_ctx->streams[0]->codecpar;
             if (codecpar->extradata_size > 0 && codecpar->extradata) {
-                av_log(s, AV_LOG_INFO, "[MSwitch Direct] Source %d has extradata (%d bytes), extracting SPS/PPS\n",
+                av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Source %d has extradata (%d bytes), extracting SPS/PPS\n",
                        ctx->num_sources, codecpar->extradata_size);
                 
                 // Store entire extradata as a single "SPS+PPS" packet for injection
@@ -838,7 +838,7 @@ static int mswitchdirect_read_header(AVFormatContext *s)
                     memcpy(source->cached_sps->data, codecpar->extradata, codecpar->extradata_size);
                     source->has_sps = 1;
                     source->has_pps = 1;  // Mark both as available since extradata contains both
-                    av_log(s, AV_LOG_INFO, "[MSwitch Direct] Source %d: Cached extradata as SPS/PPS\n", ctx->num_sources);
+                    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Source %d: Cached extradata as SPS/PPS\n", ctx->num_sources);
                 }
             } else {
                 av_log(s, AV_LOG_WARNING, "[MSwitch Direct] Source %d has no extradata - SPS/PPS injection may not work!\n",
@@ -935,19 +935,19 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         ctx->startup_time = av_gettime() / 1000;  // Record startup time
         ctx->last_health_check = ctx->startup_time;
         pthread_create(&ctx->health_thread, NULL, health_monitor_thread, ctx);
-        av_log(s, AV_LOG_INFO, "[MSwitch Direct] Auto-failover enabled (timeout: %dms, check interval: %dms, grace period: %dms)\n",
+        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Auto-failover enabled (timeout: %dms, check interval: %dms, grace period: %dms)\n",
                ctx->source_timeout_ms, ctx->health_check_interval_ms, ctx->startup_grace_period_ms);
     } else {
         ctx->health_running = 0;
-        av_log(s, AV_LOG_INFO, "[MSwitch Direct] Auto-failover disabled\n");
+        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Auto-failover disabled\n");
     }
     
     // Set global context for CLI control
     global_mswitchdirect_ctx = ctx;
     
-    av_log(s, AV_LOG_INFO, "[MSwitch Direct] Initialized with %d sources, control port %d\n", 
+    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Initialized with %d sources, control port %d\n", 
            ctx->num_sources, ctx->control_port);
-    av_log(s, AV_LOG_INFO, "[MSwitch Direct] CLI controls: Press 0-%d to switch sources, 'm' for status\n",
+    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] CLI controls: Press 0-%d to switch sources, 'm' for status\n",
            ctx->num_sources - 1);
     
     return 0;
@@ -977,7 +977,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         pkt->size = 0;
         pkt->stream_index = 0;
         
-        av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 🔄 Sending flush packet to decoder\n");
+        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] 🔄 Sending flush packet to decoder\n");
         return 0;
     }
     
@@ -1001,7 +1001,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
             pkt->dts = 0;
             pkt->flags = 0;  // Not a keyframe, just metadata
             
-            av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 💉 Injecting SPS/PPS extradata for source %d (%d bytes, pts=0, dts=0)\n",
+            av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] 💉 Injecting SPS/PPS extradata for source %d (%d bytes, pts=0, dts=0)\n",
                    active_source, extradata_pkt->size);
             return 0;
         } else {
@@ -1020,7 +1020,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         av_packet_ref(pkt, cached);
         av_packet_free(&cached);
         
-        av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 📦 Outputting first I-frame from source %d after flush+SPS/PPS (flags=0x%x, size=%d)\n",
+        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] 📦 Outputting first I-frame from source %d after flush+SPS/PPS (flags=0x%x, size=%d)\n",
                active_source, pkt->flags, pkt->size);
         
         // Continue to timestamp normalization below
@@ -1335,7 +1335,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
             
             // If we were in freeze-frame mode and now have a real packet, exit freeze-frame
             if (ctx->freeze_frame_active) {
-                av_log(s, AV_LOG_INFO, "[MSwitch Direct] ✅ Source %d recovered, exiting freeze-frame mode\n", active_source);
+                av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] ✅ Source %d recovered, exiting freeze-frame mode\n", active_source);
                 ctx->freeze_frame_active = 0;
             }
         }
@@ -1351,7 +1351,7 @@ normalize_timestamps:
                                   (pending_switch >= 0 ? "PENDING" : "NORMAL");
         const char *frame_type = (pkt->flags & AV_PKT_FLAG_KEY) ? "I" : "P";
         
-        av_log(s, AV_LOG_INFO, "[MSwitch Direct OUTPUT] Source %d → Encoder | Type: %s | Frame: %s | Size: %d bytes | PTS: %lld\n",
+        av_log(s, AV_LOG_DEBUG, "[MSwitch Direct OUTPUT] Source %d → Encoder | Type: %s | Frame: %s | Size: %d bytes | PTS: %lld\n",
                active_source, source_type, frame_type, pkt->size, pkt->pts);
     }
     
@@ -1473,7 +1473,7 @@ static int mswitchdirect_read_close(AVFormatContext *s)
     }
     int i;
     
-    av_log(s, AV_LOG_INFO, "[MSwitch Direct] Closing\n");
+    av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Closing\n");
     
     // Stop health monitoring thread
     ctx->health_running = 0;
