@@ -1026,6 +1026,35 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
     int buf_index;
     int ret;
 
+    // Log incoming packet details for debugging
+    if (buf_size > 4) {
+        const char *nal_type_name = "UNKNOWN";
+        int nal_type = -1;
+        
+        // Check for NAL unit start codes
+        for (int i = 0; i < buf_size - 4; i++) {
+            if (buf[i] == 0 && buf[i+1] == 0 && buf[i+2] == 1) {
+                nal_type = buf[i+3] & 0x1F;
+                break;
+            } else if (buf[i] == 0 && buf[i+1] == 0 && buf[i+2] == 0 && buf[i+3] == 1 && i+4 < buf_size) {
+                nal_type = buf[i+4] & 0x1F;
+                break;
+            }
+        }
+        
+        switch (nal_type) {
+            case 1: nal_type_name = "P-frame"; break;
+            case 5: nal_type_name = "IDR/I-frame"; break;
+            case 7: nal_type_name = "SPS"; break;
+            case 8: nal_type_name = "PPS"; break;
+            case 9: nal_type_name = "AUD"; break;
+            default: nal_type_name = "OTHER"; break;
+        }
+        
+        av_log(avctx, AV_LOG_INFO, "[H264 DECODER INPUT] NAL type %d (%s) | Size: %d bytes | PTS: %lld | Flags: 0x%x\n",
+               nal_type, nal_type_name, buf_size, avpkt->pts, avpkt->flags);
+    }
+
     h->flags = avctx->flags;
     h->setup_finished = 0;
     h->nb_slice_ctx_queued = 0;
@@ -1039,9 +1068,12 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
     if (av_packet_get_side_data(avpkt, AV_PKT_DATA_NEW_EXTRADATA, NULL)) {
         size_t side_size;
         uint8_t *side = av_packet_get_side_data(avpkt, AV_PKT_DATA_NEW_EXTRADATA, &side_size);
+        av_log(avctx, AV_LOG_INFO, "[H264 DECODER] Processing NEW_EXTRADATA side data (size=%zu)\n", side_size);
         ff_h264_decode_extradata(side, side_size,
                                  &h->ps, &h->is_avc, &h->nal_length_size,
                                  avctx->err_recognition, avctx);
+        av_log(avctx, AV_LOG_INFO, "[H264 DECODER] Extradata processed, SPS present: %d, PPS present: %d\n", 
+               h->ps.sps != NULL, h->ps.pps != NULL);
     }
     if (h->is_avc && buf_size >= 9 && buf[0]==1 && buf[2]==0 && (buf[4]&0xFC)==0xFC) {
         if (is_avcc_extradata(buf, buf_size))
