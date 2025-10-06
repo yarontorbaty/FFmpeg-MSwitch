@@ -240,7 +240,7 @@ FFmpeg's built-in SRT listener only supports single-client connections and exits
 
 ```bash
 # The helper script automatically manages relays
-./.archive/mswitch_srt \
+./tools/srt_relay/mswitch_srt \
   srt://source1.com:9000 \
   srt://source2.com:9000 \
   srt://source3.com:9000 \
@@ -253,7 +253,7 @@ FFmpeg's built-in SRT listener only supports single-client connections and exits
 
 ```bash
 # Terminal 1-3: Start one relay per source
-cd .archive
+cd tools/srt_relay
 ./srt_relay 9000 12350 &  # Relay for source 0
 ./srt_relay 9001 12351 &  # Relay for source 1
 ./srt_relay 9002 12352 &  # Relay for source 2
@@ -273,8 +273,8 @@ ffmpeg -re -i video2.mp4 -c:v libx264 -f mpegts "srt://127.0.0.1:9002" &
 ### Building the SRT Relay
 
 ```bash
-cd .archive
-make -f Makefile.srt_relay
+cd tools/srt_relay
+make
 ```
 
 ### Architecture
@@ -289,9 +289,9 @@ Source 2 ──9002──▶ Relay 2 ──12352──▶ ┘
 
 ### For More Details
 
-- **Full documentation:** `.archive/SRT_RELAY_README.md`
-- **Quick start guide:** `.archive/QUICK_START_SRT.md`
-- **Test script:** `.archive/test_srt_with_relay.sh`
+- **Full documentation:** `tools/srt_relay/README.md`
+- **Quick start guide:** `tools/srt_relay/QUICK_START_SRT.md`
+- **Test script:** `tools/srt_relay/test_srt_with_relay.sh`
 
 ### Alternative: Use UDP for LAN
 
