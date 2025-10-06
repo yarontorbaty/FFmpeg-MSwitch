@@ -15,11 +15,30 @@ echo ""
 # Detect architecture
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
-    echo "Building for Apple Silicon (arm64)"
-    ARCH_NAME="arm64"
+    echo "Building on Apple Silicon"
+    NATIVE_ARCH="arm64"
 else
-    echo "Building for Intel (x86_64)"
-    ARCH_NAME="x86_64"
+    echo "Building on Intel"
+    NATIVE_ARCH="x86_64"
+fi
+
+# Ask user what to build
+echo ""
+echo "Build options:"
+echo "1) Native only ($NATIVE_ARCH) - Fast, single architecture"
+echo "2) Universal binary (arm64 + x86_64) - Slower, works on all Macs"
+echo ""
+read -p "Choose [1/2] (default: 1): " BUILD_CHOICE
+BUILD_CHOICE=${BUILD_CHOICE:-1}
+
+if [ "$BUILD_CHOICE" = "2" ]; then
+    echo "Building universal binary for both architectures..."
+    BUILD_UNIVERSAL=true
+    ARCH_NAME="universal"
+else
+    echo "Building for $NATIVE_ARCH only..."
+    BUILD_UNIVERSAL=false
+    ARCH_NAME="$NATIVE_ARCH"
 fi
 
 # Check dependencies
@@ -47,38 +66,114 @@ echo "Cleaning previous build..."
 cd "$FFMPEG_DIR"
 make clean 2>/dev/null || true
 
-# Configure
-echo "Configuring FFmpeg..."
-./configure \
-    --prefix="$RELEASE_DIR/ffmpeg-mswitch-$ARCH_NAME" \
-    --enable-gpl \
-    --enable-version3 \
-    --enable-nonfree \
-    --enable-libx264 \
-    --enable-libx265 \
-    --enable-libaom \
-    --enable-libsrt \
-    --enable-libfreetype \
-    --enable-libfontconfig \
-    --enable-libharfbuzz \
-    --enable-protocol=srt \
-    --enable-decoder=hevc \
-    --enable-decoder=av1 \
-    --enable-encoder=libx265 \
-    --enable-encoder=libaom-av1 \
-    --extra-cflags="-I/opt/homebrew/include" \
-    --extra-ldflags="-L/opt/homebrew/lib" \
-    --pkg-config-flags=--static
-
-# Build
-echo ""
-echo "Building FFmpeg (this may take 10-20 minutes)..."
-make -j$(sysctl -n hw.ncpu)
-
-# Install to release directory
-echo ""
-echo "Installing to release directory..."
-make install
+if [ "$BUILD_UNIVERSAL" = true ]; then
+    # Build for both architectures
+    echo ""
+    echo "=== Building for arm64 ==="
+    ./configure \
+        --prefix="$RELEASE_DIR/build-arm64" \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-nonfree \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libsrt \
+        --enable-libfreetype \
+        --enable-libfontconfig \
+        --enable-libharfbuzz \
+        --enable-protocol=srt \
+        --enable-decoder=hevc \
+        --enable-decoder=av1 \
+        --enable-encoder=libx265 \
+        --enable-encoder=libaom-av1 \
+        --arch=arm64 \
+        --extra-cflags="-arch arm64 -I/opt/homebrew/include" \
+        --extra-ldflags="-arch arm64 -L/opt/homebrew/lib" \
+        --pkg-config-flags=--static
+    
+    echo "Building arm64 (this may take 10-20 minutes)..."
+    make -j$(sysctl -n hw.ncpu)
+    make install
+    
+    echo ""
+    echo "=== Building for x86_64 ==="
+    make clean
+    ./configure \
+        --prefix="$RELEASE_DIR/build-x86_64" \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-nonfree \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libsrt \
+        --enable-libfreetype \
+        --enable-libfontconfig \
+        --enable-libharfbuzz \
+        --enable-protocol=srt \
+        --enable-decoder=hevc \
+        --enable-decoder=av1 \
+        --enable-encoder=libx265 \
+        --enable-encoder=libaom-av1 \
+        --arch=x86_64 \
+        --extra-cflags="-arch x86_64 -I/opt/homebrew/include -I/usr/local/include" \
+        --extra-ldflags="-arch x86_64 -L/opt/homebrew/lib -L/usr/local/lib" \
+        --pkg-config-flags=--static
+    
+    echo "Building x86_64 (this may take 10-20 minutes)..."
+    make -j$(sysctl -n hw.ncpu)
+    make install
+    
+    # Create universal binaries
+    echo ""
+    echo "Creating universal binaries..."
+    mkdir -p "$RELEASE_DIR/ffmpeg-mswitch-$ARCH_NAME/bin"
+    
+    for binary in ffmpeg ffplay ffprobe; do
+        if [ -f "$RELEASE_DIR/build-arm64/bin/$binary" ] && [ -f "$RELEASE_DIR/build-x86_64/bin/$binary" ]; then
+            echo "  Creating universal $binary..."
+            lipo -create \
+                "$RELEASE_DIR/build-arm64/bin/$binary" \
+                "$RELEASE_DIR/build-x86_64/bin/$binary" \
+                -output "$RELEASE_DIR/ffmpeg-mswitch-$ARCH_NAME/bin/$binary"
+        fi
+    done
+    
+    # Clean up temporary builds
+    rm -rf "$RELEASE_DIR/build-arm64" "$RELEASE_DIR/build-x86_64"
+else
+    # Build for native architecture only
+    echo "Configuring FFmpeg for $NATIVE_ARCH..."
+    ./configure \
+        --prefix="$RELEASE_DIR/ffmpeg-mswitch-$ARCH_NAME" \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-nonfree \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libaom \
+        --enable-libsrt \
+        --enable-libfreetype \
+        --enable-libfontconfig \
+        --enable-libharfbuzz \
+        --enable-protocol=srt \
+        --enable-decoder=hevc \
+        --enable-decoder=av1 \
+        --enable-encoder=libx265 \
+        --enable-encoder=libaom-av1 \
+        --extra-cflags="-I/opt/homebrew/include" \
+        --extra-ldflags="-L/opt/homebrew/lib" \
+        --pkg-config-flags=--static
+    
+    echo ""
+    echo "Building FFmpeg (this may take 10-20 minutes)..."
+    make -j$(sysctl -n hw.ncpu)
+    
+    echo ""
+    echo "Installing to release directory..."
+    make install
+fi
 
 # Copy SRT relay tools
 echo "Copying SRT relay tools..."
