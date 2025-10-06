@@ -215,26 +215,43 @@ ffmpeg -f mswitchdirect \
 
 ### Example 7: SRT Input and Output
 
-**⚠️ Important:** SRT sources require the SRT relay server. See [SRT Setup](#srt-setup) below.
+**Note:** If you experience SRT connection issues, see [SRT Setup](#srt-setup) for relay options.
 
 ```bash
-# After starting SRT relays (see SRT Setup section)
+# Direct connection (if sources support multiple clients)
 ./ffmpeg -f mswitchdirect \
-  -msw_sources "srt://127.0.0.1:12350?mode=caller,srt://127.0.0.1:12351?mode=caller,srt://127.0.0.1:12352?mode=caller" \
+  -msw_sources "srt://source1.com:9000?mode=caller,srt://source2.com:9000?mode=caller,srt://source3.com:9000?mode=caller" \
   -msw_port 8080 \
   -msw_auto_failover 1 \
   -i dummy \
   -c:v libx264 -preset ultrafast \
   -f mpegts "srt://output.server.com:9000?mode=caller&latency=1000"
+
+# Or with relay (if experiencing connection issues, see SRT Setup section)
+./tools/srt_relay/mswitch_srt srt://source1:9000 srt://source2:9000 srt://source3:9000 -- \
+  -msw_port 8080 -msw_auto_failover 1 -i dummy -c:v libx264 -f mpegts "srt://output:9000"
 ```
 
 ## SRT Setup
 
-### Why SRT Needs a Relay
+### Direct SRT Connection (Try This First)
 
-FFmpeg's built-in SRT listener only supports single-client connections and exits when the client disconnects. For mswitchdirect's multi-source failover, we provide a lightweight SRT relay server.
+If your SRT sources are already coming from a dedicated SRT server or relay that supports multiple clients, you can connect directly:
 
-### Quick Start with SRT
+```bash
+./ffmpeg -f mswitchdirect \
+  -msw_sources "srt://source1.com:9000?mode=caller,srt://source2.com:9000?mode=caller,srt://source3.com:9000?mode=caller" \
+  -msw_port 8080 -msw_auto_failover 1 \
+  -i dummy -c:v libx264 -f mpegts udp://output:5000
+```
+
+### When You Need the SRT Relay
+
+**Problem:** FFmpeg's built-in SRT listener only supports single-client connections and exits when the client disconnects. This causes issues with mswitchdirect's health checks and reconnection logic.
+
+**Solution:** If you experience connection issues, disconnections, or "no sockets to check" errors when using SRT sources, use our lightweight SRT relay server as an intermediary.
+
+### Using the SRT Relay
 
 **Option 1: Using the Helper Script (Recommended)**
 
@@ -293,9 +310,19 @@ Source 2 ──9002──▶ Relay 2 ──12352──▶ ┘
 - **Quick start guide:** `tools/srt_relay/QUICK_START_SRT.md`
 - **Test script:** `tools/srt_relay/test_srt_with_relay.sh`
 
-### Alternative: Use UDP for LAN
+### Comparison: SRT vs UDP
 
-For local/LAN streaming, UDP is simpler and doesn't require relays:
+**Use SRT when:**
+- Streaming over WAN/Internet
+- Need error correction and retransmission
+- Network has packet loss or jitter
+- Sources already use SRT
+
+**Use UDP when:**
+- Streaming on local/LAN network
+- Low latency is critical
+- Network is reliable
+- Simpler setup preferred (no relay needed)
 
 ```bash
 # Sources (no relay needed!)
