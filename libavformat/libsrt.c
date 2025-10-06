@@ -153,9 +153,19 @@ static int libsrt_neterrno(URLContext *h)
 {
     int os_errno;
     int err = srt_getlasterror(&os_errno);
+    const char *err_str = srt_getlasterror_str();
+    
     if (err == SRT_EASYNCRCV || err == SRT_EASYNCSND)
         return AVERROR(EAGAIN);
-    av_log(h, AV_LOG_ERROR, "%s\n", srt_getlasterror_str());
+    
+    // Handle "no sockets in epoll" error - this happens when all clients disconnect
+    // from a listener. Log as warning instead of error and return EOF.
+    if (err_str && strstr(err_str, "no sockets to check")) {
+        av_log(h, AV_LOG_WARNING, "SRT: All clients disconnected from listener\n");
+        return AVERROR_EOF;
+    }
+    
+    av_log(h, AV_LOG_ERROR, "%s\n", err_str);
     return os_errno ? AVERROR(os_errno) : AVERROR_UNKNOWN;
 }
 

@@ -59,10 +59,10 @@ make -j8
 - Hardware acceleration (VideoToolbox on macOS)
 
 **Supported Protocols:**
-- UDP
-- RTSP
-- SRT (Secure Reliable Transport)
-- RTMP
+- UDP (recommended for LAN)
+- RTSP (IP cameras)
+- SRT (with relay server - see `.archive/SRT_RELAY_README.md`)
+- RTMP (legacy)
 
 **Video Filters:**
 - All standard FFmpeg filters enabled
@@ -215,16 +215,100 @@ ffmpeg -f mswitchdirect \
 
 ### Example 7: SRT Input and Output
 
+**⚠️ Important:** SRT sources require the SRT relay server. See [SRT Setup](#srt-setup) below.
+
 ```bash
-# SRT sources with SRT output
+# After starting SRT relays (see SRT Setup section)
 ./ffmpeg -f mswitchdirect \
-  -msw_sources "srt://192.168.1.10:9000?mode=caller,srt://192.168.1.11:9000?mode=caller" \
+  -msw_sources "srt://127.0.0.1:12350?mode=caller,srt://127.0.0.1:12351?mode=caller,srt://127.0.0.1:12352?mode=caller" \
   -msw_port 8080 \
   -msw_auto_failover 1 \
   -i dummy \
   -c:v libx264 -preset ultrafast \
   -f mpegts "srt://output.server.com:9000?mode=caller&latency=1000"
 ```
+
+## SRT Setup
+
+### Why SRT Needs a Relay
+
+FFmpeg's built-in SRT listener only supports single-client connections and exits when the client disconnects. For mswitchdirect's multi-source failover, we provide a lightweight SRT relay server.
+
+### Quick Start with SRT
+
+**Option 1: Using the Helper Script (Recommended)**
+
+```bash
+# The helper script automatically manages relays
+./.archive/mswitch_srt \
+  srt://source1.com:9000 \
+  srt://source2.com:9000 \
+  srt://source3.com:9000 \
+  -- \
+  -msw_port 8080 -msw_auto_failover 1 \
+  -i dummy -c:v libx264 -f mpegts udp://output:5000
+```
+
+**Option 2: Manual Setup**
+
+```bash
+# Terminal 1-3: Start one relay per source
+cd .archive
+./srt_relay 9000 12350 &  # Relay for source 0
+./srt_relay 9001 12351 &  # Relay for source 1
+./srt_relay 9002 12352 &  # Relay for source 2
+
+# Terminal 4-6: Sources publish to relay inputs
+ffmpeg -re -i video0.mp4 -c:v libx264 -f mpegts "srt://127.0.0.1:9000" &
+ffmpeg -re -i video1.mp4 -c:v libx264 -f mpegts "srt://127.0.0.1:9001" &
+ffmpeg -re -i video2.mp4 -c:v libx264 -f mpegts "srt://127.0.0.1:9002" &
+
+# Terminal 7: MSwitch connects to relay outputs
+./ffmpeg -f mswitchdirect \
+  -msw_sources "srt://127.0.0.1:12350?mode=caller,srt://127.0.0.1:12351?mode=caller,srt://127.0.0.1:12352?mode=caller" \
+  -msw_port 8080 -msw_auto_failover 1 \
+  -i dummy -c:v libx264 -f mpegts udp://output:5000
+```
+
+### Building the SRT Relay
+
+```bash
+cd .archive
+make -f Makefile.srt_relay
+```
+
+### Architecture
+
+```
+Source 0 ──9000──▶ Relay 0 ──12350──▶ ┐
+Source 1 ──9001──▶ Relay 1 ──12351──▶ ├─▶ MSwitch ──▶ Output
+Source 2 ──9002──▶ Relay 2 ──12352──▶ ┘
+```
+
+**Key Point:** One relay instance per source. Each relay accepts one source and can broadcast to multiple clients.
+
+### For More Details
+
+- **Full documentation:** `.archive/SRT_RELAY_README.md`
+- **Quick start guide:** `.archive/QUICK_START_SRT.md`
+- **Test script:** `.archive/test_srt_with_relay.sh`
+
+### Alternative: Use UDP for LAN
+
+For local/LAN streaming, UDP is simpler and doesn't require relays:
+
+```bash
+# Sources (no relay needed!)
+ffmpeg -re -i video0.mp4 -c:v libx264 -f mpegts udp://127.0.0.1:12350 &
+ffmpeg -re -i video1.mp4 -c:v libx264 -f mpegts udp://127.0.0.1:12351 &
+
+# MSwitch
+./ffmpeg -f mswitchdirect \
+  -msw_sources "udp://127.0.0.1:12350,udp://127.0.0.1:12351" \
+  -msw_port 8080 -i dummy -c:v copy -f mpegts udp://output:5000
+```
+
+Use SRT only when you need encryption or reliable delivery over internet/WAN.
 
 ## HTTP Control API
 

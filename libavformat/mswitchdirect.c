@@ -47,6 +47,14 @@
 #include "demux.h"
 #include "url.h"
 
+// SRT support
+#ifdef CONFIG_LIBSRT
+#include <srt/srt.h>
+#define HAVE_SRT 1
+#else
+#define HAVE_SRT 0
+#endif
+
 #define MAX_SOURCES 10
 #define PACKET_BUFFER_SIZE 90  // ~3 seconds at 30fps to cover 2s GOP + buffer for I-frame switching
 #define MSW_CONTROL_PORT_DEFAULT 8099
@@ -92,6 +100,36 @@ typedef struct MSwitchSource {
     int has_sps;                   // Whether we have cached SPS
     int has_pps;                   // Whether we have cached PPS
 } MSwitchSource;
+
+#if HAVE_SRT
+// SRT Relay structures for transparent SRT support
+#define MAX_SRT_CLIENTS 10
+#define SRT_BUFFER_SIZE 2048
+
+typedef struct SRTRelayClient {
+    SRTSOCKET socket;
+    int active;
+    pthread_mutex_t mutex;
+} SRTRelayClient;
+
+typedef struct SRTRelay {
+    int enabled;                    // Whether SRT relay is active
+    int input_port;                 // Port where sources publish
+    SRTSOCKET input_socket;         // Current input connection
+    pthread_t input_thread;         // Thread handling input
+    int running;                    // Relay is running
+    
+    int num_outputs;                // Number of output ports
+    int output_ports[MAX_SOURCES];  // Output ports for each source
+    pthread_t output_threads[MAX_SOURCES];  // Threads for each output port
+    
+    SRTRelayClient clients[MAX_SRT_CLIENTS];  // Connected clients
+    pthread_mutex_t clients_mutex;  // Protect client list
+    
+    char *original_urls[MAX_SOURCES];  // Original SRT URLs from user
+    char *relay_urls[MAX_SOURCES];     // Modified URLs pointing to relay
+} SRTRelay;
+#endif
 
 typedef struct MSwitchDirectContext {
     const AVClass *class;
@@ -143,6 +181,11 @@ typedef struct MSwitchDirectContext {
     
     // Clean switching control
     int clean_switch_enabled;      // Enable decoder flush + SPS/PPS injection for smooth manual switches
+    
+#if HAVE_SRT
+    // Integrated SRT relay for transparent SRT support
+    SRTRelay srt_relay;
+#endif
 } MSwitchDirectContext;
 
 // Global context for CLI control
@@ -368,6 +411,7 @@ static int packet_buffer_get_from_iframe(PacketBuffer *buf, AVPacket *pkt)
 
 // Reader thread - continuously reads from a source into its buffer
 // Supports automatic reconnection for UDP sources
+// For SRT: keeps connections alive, only reconnects on true connection loss
 static void *source_reader_thread(void *arg)
 {
     MSwitchSource *source = (MSwitchSource *)arg;
@@ -376,8 +420,11 @@ static void *source_reader_thread(void *arg)
     int ret;
     int consecutive_errors = 0;
     
-    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Reader thread started for %s\n", 
-           source->source_index, source->url);
+    // Detect if this is an SRT source
+    int is_srt = (strncmp(source->url, "srt://", 6) == 0);
+    
+    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Reader thread started for %s (protocol: %s)\n", 
+           source->source_index, source->url, is_srt ? "SRT" : "other");
     
     while (source->thread_running) {
         // Safety check: if fmt_ctx is NULL (reconnect failed), treat as error and retry
@@ -398,22 +445,36 @@ static void *source_reader_thread(void *arg)
         
 handle_error:
         if (ret < 0) {
-            // Treat most errors as recoverable for UDP sources (EOF, EAGAIN, I/O errors)
-            // Only truly fatal errors (like ENOMEM) should exit the thread
-            int is_recoverable = (ret == AVERROR_EOF || 
-                                  ret == AVERROR(EAGAIN) || 
-                                  ret == AVERROR(EIO) ||      // I/O error (common when UDP source stops)
-                                  ret == AVERROR(ETIMEDOUT) ||
-                                  ret == AVERROR(ECONNRESET));
+            // Different error handling for SRT vs UDP
+            // SRT: EAGAIN/ETIMEDOUT are normal (no data available), keep connection alive
+            // UDP: Treat most errors as recoverable and attempt reconnect
+            int is_temporary_error = (ret == AVERROR(EAGAIN) || ret == AVERROR(ETIMEDOUT));
+            int is_connection_lost = (ret == AVERROR_EOF || 
+                                      ret == AVERROR(EIO) ||
+                                      ret == AVERROR(ECONNRESET) ||
+                                      ret == AVERROR(EPIPE));
             
-            if (is_recoverable) {
+            // For SRT with temporary errors: just wait and retry, don't reconnect
+            if (is_srt && is_temporary_error) {
+                // This is normal for SRT - no data available right now
+                // Just wait a bit and try again, keep connection alive
+                av_usleep(10000); // Wait 10ms
+                av_packet_unref(pkt);
+                continue;
+            }
+            
+            // For connection loss or UDP errors: attempt reconnection
+            int should_reconnect = is_connection_lost || !is_srt;
+            
+            if (should_reconnect) {
                 // No data available - do NOT update last_packet_time
                 // This allows health monitoring to detect source loss
                 consecutive_errors++;
                 
                 if (consecutive_errors == 1) {
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Read error: %s (will attempt reconnect)\n", 
-                           source->source_index, av_err2str(ret));
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Read error: %s (%s)\n", 
+                           source->source_index, av_err2str(ret), 
+                           is_srt ? "SRT connection lost" : "will attempt reconnect");
                 }
                 
                 // After 100 consecutive errors (~1 second), try to reconnect
@@ -448,10 +509,11 @@ handle_error:
                     source->fmt_ctx = avformat_alloc_context();
                     
                     AVDictionary *opts = NULL;
-                    av_dict_set(&opts, "timeout", "100000", 0);  // 100ms timeout
+                    // Use longer timeout for SRT connections (5 seconds vs 100ms for UDP)
+                    av_dict_set(&opts, "timeout", is_srt ? "5000000" : "100000", 0);
                     
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Attempting to open %s...\n", 
-                           source->source_index, source->url);
+                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Attempting to open %s (%s)...\n", 
+                           source->source_index, source->url, is_srt ? "SRT" : "UDP");
                     
                     ret = avformat_open_input(&source->fmt_ctx, source->url, NULL, &opts);
                     av_dict_free(&opts);
@@ -833,9 +895,12 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         
         av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Opening source %d: %s\n", ctx->num_sources, source_url);
         
-        // Set timeout for UDP sources (in microseconds) and disable DTS checks
+        // Detect protocol and set appropriate timeout
+        int is_srt_source = (strncmp(source_url, "srt://", 6) == 0);
+        
+        // Set timeout (in microseconds): SRT needs longer for connection establishment
         AVDictionary *opts = NULL;
-        av_dict_set(&opts, "timeout", "100000", 0);  // 100ms timeout for fast failure detection
+        av_dict_set(&opts, "timeout", is_srt_source ? "5000000" : "100000", 0);  // 5s for SRT, 100ms for UDP
         
         // Open input
         ret = avformat_open_input(&source->fmt_ctx, source_url, NULL, &opts);
@@ -848,6 +913,13 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         
         // Disable DTS checking to avoid "out of order" warnings when switching sources
         source->fmt_ctx->flags |= AVFMT_FLAG_IGNDTS;
+        
+        // For SRT: use minimal probing to avoid keeping connection open too long
+        // This prevents the listener from timing out during initialization
+        if (is_srt_source) {
+            source->fmt_ctx->probesize = 32768;  // 32KB instead of default 5MB
+            source->fmt_ctx->max_analyze_duration = 1000000;  // 1 second instead of 5 seconds
+        }
         
         ret = avformat_find_stream_info(source->fmt_ctx, NULL);
         if (ret < 0) {
@@ -895,9 +967,9 @@ static int mswitchdirect_read_header(AVFormatContext *s)
             }
         }
         
-        // Start reader thread
-        source->thread_running = 1;
-        pthread_create(&source->reader_thread, NULL, source_reader_thread, source);
+        // Don't start reader thread yet - wait until all sources are opened
+        // This prevents SRT connection issues during initialization
+        source->thread_running = 0;
         
         ctx->num_sources++;
         source_url = av_strtok(NULL, ",", &saveptr);
@@ -908,6 +980,14 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     if (ctx->num_sources == 0) {
         av_log(s, AV_LOG_ERROR, "[MSwitch Direct] No sources provided\n");
         return AVERROR(EINVAL);
+    }
+    
+    // Now start all reader threads after all sources are opened
+    // This prevents connection issues during sequential source opening
+    av_log(s, AV_LOG_INFO, "[MSwitch Direct] All sources opened, starting reader threads...\n");
+    for (i = 0; i < ctx->num_sources; i++) {
+        ctx->sources[i].thread_running = 1;
+        pthread_create(&ctx->sources[i].reader_thread, NULL, source_reader_thread, &ctx->sources[i]);
     }
     
     // Copy streams from first source
