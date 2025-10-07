@@ -28,16 +28,30 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <io.h>
+#include <process.h>
+#define close closesocket
+#define getpid _getpid
+typedef int pid_t;
+// Windows doesn't have wait/fork, these are for the subprocess code which we may not use on Windows
+#define WEXITSTATUS(x) (x)
+#define WIFEXITED(x) 1
+#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#endif
 
 // External global context declared in ffmpeg_opt.c
 extern MSwitchContext global_mswitch_ctx;
