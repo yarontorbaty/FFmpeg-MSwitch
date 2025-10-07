@@ -28,7 +28,11 @@
  * This demuxer spawns subprocess FFmpeg instances for each source,
  * runs a UDP proxy to forward packets from the active source,
  * and provides an HTTP control interface for switching sources.
+ * 
+ * NOTE: This demuxer is Unix/Linux/macOS only. Use mswitchdirect on Windows.
  */
+
+#ifndef _WIN32
 
 #include <pthread.h>
 #include <sys/types.h>
@@ -1027,4 +1031,25 @@ const FFInputFormat ff_mswitch_demuxer = {
     .read_packet    = mswitch_read_packet,
     .read_close     = mswitch_read_close,
 };
+
+#else /* _WIN32 */
+
+#include "libavutil/log.h"
+#include "avformat.h"
+
+// Stub for Windows - use mswitchdirect instead
+static const AVClass mswitch_demuxer_class = {
+    .class_name = "mswitch demuxer",
+    .item_name  = av_default_item_name,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
+const FFInputFormat ff_mswitch_demuxer = {
+    .p.name         = "mswitch",
+    .p.long_name    = "Multi-Source Switch (not available on Windows, use mswitchdirect)",
+    .p.flags        = AVFMT_NOFILE,
+    .p.priv_class   = &mswitch_demuxer_class,
+};
+
+#endif /* _WIN32 */
 

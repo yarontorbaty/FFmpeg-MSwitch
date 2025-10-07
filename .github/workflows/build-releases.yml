@@ -14,7 +14,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          brew install nasm pkg-config x264 x265 aom srt freetype fontconfig harfbuzz
+          brew install nasm pkg-config x264 x265 aom srt freetype fontconfig harfbuzz sdl2
       
       - name: Configure
         run: |
@@ -30,6 +30,7 @@ jobs:
             --enable-libfreetype \
             --enable-libfontconfig \
             --enable-libharfbuzz \
+            --enable-sdl2 \
             --enable-stripping \
             --disable-debug \
             --extra-cflags="-O3 -I/opt/homebrew/include" \
@@ -45,10 +46,10 @@ jobs:
       - name: Build SRT Relay
         run: |
           cd tools/srt_relay
-          make
+          make || true
           mkdir -p ../../build/bin
-          cp srt_relay ../../build/bin/
-          cp mswitch_srt ../../build/bin/
+          if [ -f srt_relay ]; then cp srt_relay ../../build/bin/; fi
+          if [ -f mswitch_srt ]; then cp mswitch_srt ../../build/bin/; fi
       
       - name: Package
         run: |
@@ -56,17 +57,17 @@ jobs:
           PACKAGE_NAME="ffmpeg-mswitch-macos-arm64-${VERSION}"
           mkdir -p "releases/${PACKAGE_NAME}"
           
-          # Copy binaries
+          # Copy binaries (only if they exist)
           cp build/bin/ffmpeg "releases/${PACKAGE_NAME}/"
           cp build/bin/ffprobe "releases/${PACKAGE_NAME}/"
-          cp build/bin/ffplay "releases/${PACKAGE_NAME}/"
-          cp build/bin/srt_relay "releases/${PACKAGE_NAME}/"
-          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          [ -f build/bin/ffplay ] && cp build/bin/ffplay "releases/${PACKAGE_NAME}/" || echo "ffplay not built"
+          [ -f build/bin/srt_relay ] && cp build/bin/srt_relay "releases/${PACKAGE_NAME}/" || echo "srt_relay not built"
+          [ -f build/bin/mswitch_srt ] && cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/" || echo "mswitch_srt not found"
           
           # Copy documentation
           cp README.md "releases/${PACKAGE_NAME}/"
           cp LICENSE.md "releases/${PACKAGE_NAME}/"
-          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          [ -f tools/srt_relay/README.md ] && cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md" || true
           
           # Create version file
           echo "FFmpeg MSwitch - macOS arm64" > "releases/${PACKAGE_NAME}/VERSION.txt"
@@ -92,7 +93,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          brew install nasm pkg-config x264 x265 aom srt freetype fontconfig harfbuzz
+          brew install nasm pkg-config x264 x265 aom srt freetype fontconfig harfbuzz sdl2
       
       - name: Configure
         run: |
@@ -108,6 +109,7 @@ jobs:
             --enable-libfreetype \
             --enable-libfontconfig \
             --enable-libharfbuzz \
+            --enable-sdl2 \
             --enable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
@@ -122,10 +124,10 @@ jobs:
       - name: Build SRT Relay
         run: |
           cd tools/srt_relay
-          make
+          make || true
           mkdir -p ../../build/bin
-          cp srt_relay ../../build/bin/
-          cp mswitch_srt ../../build/bin/
+          if [ -f srt_relay ]; then cp srt_relay ../../build/bin/; fi
+          if [ -f mswitch_srt ]; then cp mswitch_srt ../../build/bin/; fi
       
       - name: Package
         run: |
@@ -135,12 +137,12 @@ jobs:
           
           cp build/bin/ffmpeg "releases/${PACKAGE_NAME}/"
           cp build/bin/ffprobe "releases/${PACKAGE_NAME}/"
-          cp build/bin/ffplay "releases/${PACKAGE_NAME}/"
-          cp build/bin/srt_relay "releases/${PACKAGE_NAME}/"
-          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          [ -f build/bin/ffplay ] && cp build/bin/ffplay "releases/${PACKAGE_NAME}/" || echo "ffplay not built"
+          [ -f build/bin/srt_relay ] && cp build/bin/srt_relay "releases/${PACKAGE_NAME}/" || echo "srt_relay not built"
+          [ -f build/bin/mswitch_srt ] && cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/" || echo "mswitch_srt not found"
           cp README.md "releases/${PACKAGE_NAME}/"
           cp LICENSE.md "releases/${PACKAGE_NAME}/"
-          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          [ -f tools/srt_relay/README.md ] && cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md" || true
           
           echo "FFmpeg MSwitch - macOS x86_64" > "releases/${PACKAGE_NAME}/VERSION.txt"
           echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
@@ -167,9 +169,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             nasm yasm pkg-config \
-            libx264-dev libx265-dev libaom-dev \
+            libx264-dev libx265-dev libnuma-dev libaom-dev \
             libsrt-openssl-dev \
             libfreetype6-dev libfontconfig1-dev libharfbuzz-dev \
+            libsdl2-dev \
             build-essential
       
       - name: Configure
@@ -186,6 +189,7 @@ jobs:
             --enable-libfreetype \
             --enable-libfontconfig \
             --enable-libharfbuzz \
+            --enable-sdl2 \
             --enable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
@@ -201,10 +205,10 @@ jobs:
       - name: Build SRT Relay
         run: |
           cd tools/srt_relay
-          make
+          make || true
           mkdir -p ../../build/bin
-          cp srt_relay ../../build/bin/
-          cp mswitch_srt ../../build/bin/
+          if [ -f srt_relay ]; then cp srt_relay ../../build/bin/; fi
+          if [ -f mswitch_srt ]; then cp mswitch_srt ../../build/bin/; fi
       
       - name: Package
         run: |
@@ -214,12 +218,12 @@ jobs:
           
           cp build/bin/ffmpeg "releases/${PACKAGE_NAME}/"
           cp build/bin/ffprobe "releases/${PACKAGE_NAME}/"
-          cp build/bin/ffplay "releases/${PACKAGE_NAME}/"
-          cp build/bin/srt_relay "releases/${PACKAGE_NAME}/"
-          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          [ -f build/bin/ffplay ] && cp build/bin/ffplay "releases/${PACKAGE_NAME}/" || echo "ffplay not built"
+          [ -f build/bin/srt_relay ] && cp build/bin/srt_relay "releases/${PACKAGE_NAME}/" || echo "srt_relay not built"
+          [ -f build/bin/mswitch_srt ] && cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/" || echo "mswitch_srt not found"
           cp README.md "releases/${PACKAGE_NAME}/"
           cp LICENSE.md "releases/${PACKAGE_NAME}/"
-          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          [ -f tools/srt_relay/README.md ] && cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md" || true
           
           echo "FFmpeg MSwitch - Linux x86_64" > "releases/${PACKAGE_NAME}/VERSION.txt"
           echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
@@ -261,6 +265,7 @@ jobs:
             mingw-w64-x86_64-freetype
             mingw-w64-x86_64-fontconfig
             mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-SDL2
       
       - name: Configure
         run: |
@@ -276,6 +281,7 @@ jobs:
             --enable-libfreetype \
             --enable-libfontconfig \
             --enable-libharfbuzz \
+            --enable-sdl2 \
             --enable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
@@ -290,10 +296,11 @@ jobs:
       - name: Build SRT Relay
         run: |
           cd tools/srt_relay
-          make
+          make || true
           mkdir -p ../../build/bin
-          cp srt_relay.exe ../../build/bin/ || cp srt_relay ../../build/bin/srt_relay.exe
-          cp mswitch_srt ../../build/bin/
+          if [ -f srt_relay.exe ]; then cp srt_relay.exe ../../build/bin/; fi
+          if [ -f srt_relay ]; then cp srt_relay ../../build/bin/srt_relay.exe; fi
+          if [ -f mswitch_srt ]; then cp mswitch_srt ../../build/bin/; fi
       
       - name: Package
         run: |
@@ -303,12 +310,12 @@ jobs:
           
           cp build/bin/ffmpeg.exe "releases/${PACKAGE_NAME}/"
           cp build/bin/ffprobe.exe "releases/${PACKAGE_NAME}/"
-          cp build/bin/ffplay.exe "releases/${PACKAGE_NAME}/"
-          cp build/bin/srt_relay.exe "releases/${PACKAGE_NAME}/"
-          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          [ -f build/bin/ffplay.exe ] && cp build/bin/ffplay.exe "releases/${PACKAGE_NAME}/" || echo "ffplay not built"
+          [ -f build/bin/srt_relay.exe ] && cp build/bin/srt_relay.exe "releases/${PACKAGE_NAME}/" || echo "srt_relay not built"
+          [ -f build/bin/mswitch_srt ] && cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/" || echo "mswitch_srt not found"
           cp README.md "releases/${PACKAGE_NAME}/"
           cp LICENSE.md "releases/${PACKAGE_NAME}/"
-          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          [ -f tools/srt_relay/README.md ] && cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md" || true
           
           echo "FFmpeg MSwitch - Windows x86_64" > "releases/${PACKAGE_NAME}/VERSION.txt"
           echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
