@@ -283,6 +283,8 @@ jobs:
             mingw-w64-x86_64-freetype
             mingw-w64-x86_64-fontconfig
             mingw-w64-x86_64-harfbuzz
+            zip
+            unzip
             mingw-w64-x86_64-SDL2
       
       - name: Configure
