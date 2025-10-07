@@ -69,6 +69,10 @@ void* input_listener(void* arg) {
         return NULL;
     }
     
+    // Set non-blocking mode for accept
+    int blocking = 0;
+    srt_setsockopt(listen_sock, 0, SRTO_RCVSYN, &blocking, sizeof(blocking));
+    
     printf("Listening for source on port %d...\n", server.listen_port);
     
     while (server.running) {
@@ -77,8 +81,10 @@ void* input_listener(void* arg) {
         
         SRTSOCKET client_sock = srt_accept(listen_sock, (struct sockaddr*)&client_addr, &addr_len);
         if (client_sock == SRT_INVALID_SOCK) {
-            if (server.running)
-                fprintf(stderr, "Warning: srt_accept failed: %s\n", srt_getlasterror_str());
+            if (!server.running)
+                break;
+            // Non-blocking, sleep a bit and retry
+            usleep(100000); // 100ms
             continue;
         }
         
@@ -139,6 +145,10 @@ void* output_listener(void* arg) {
         return NULL;
     }
     
+    // Set non-blocking mode for accept
+    int blocking = 0;
+    srt_setsockopt(listen_sock, 0, SRTO_RCVSYN, &blocking, sizeof(blocking));
+    
     printf("Listening for clients on port %d...\n", port);
     
     while (server.running) {
@@ -147,8 +157,10 @@ void* output_listener(void* arg) {
         
         SRTSOCKET client_sock = srt_accept(listen_sock, (struct sockaddr*)&client_addr, &addr_len);
         if (client_sock == SRT_INVALID_SOCK) {
-            if (server.running)
-                fprintf(stderr, "Warning: srt_accept failed on port %d: %s\n", port, srt_getlasterror_str());
+            if (!server.running)
+                break;
+            // Non-blocking, sleep a bit and retry
+            usleep(100000); // 100ms
             continue;
         }
         
