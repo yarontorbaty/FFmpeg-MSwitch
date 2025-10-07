@@ -472,7 +472,7 @@ handle_error:
                 consecutive_errors++;
                 
                 if (consecutive_errors == 1) {
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Read error: %s (%s)\n", 
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Read error: %s (%s)\n", 
                            source->source_index, av_err2str(ret), 
                            is_srt ? "SRT connection lost" : "will attempt reconnect");
                 }
@@ -497,7 +497,7 @@ handle_error:
                         }
                     }
                     
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Closing and reopening connection (consecutive_errors=%d)...\n", 
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Closing and reopening connection (consecutive_errors=%d)...\n", 
                            source->source_index, consecutive_errors);
                     
                     // Close and reopen the source
@@ -512,14 +512,14 @@ handle_error:
                     // Use longer timeout for SRT connections (5 seconds vs 100ms for UDP)
                     av_dict_set(&opts, "timeout", is_srt ? "5000000" : "100000", 0);
                     
-                    av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Attempting to open %s (%s)...\n", 
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Attempting to open %s (%s)...\n", 
                            source->source_index, source->url, is_srt ? "SRT" : "UDP");
                     
                     ret = avformat_open_input(&source->fmt_ctx, source->url, NULL, &opts);
                     av_dict_free(&opts);
                     
                     if (ret < 0) {
-                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Reconnect attempt failed: %s (will retry)\n", 
+                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Reconnect attempt failed: %s (will retry)\n", 
                                source->source_index, av_err2str(ret));
                         // Set fmt_ctx to NULL since open failed - we'll allocate a new one on next attempt
                         source->fmt_ctx = NULL;
@@ -528,7 +528,7 @@ handle_error:
                         av_packet_unref(pkt);
                         continue;  // Skip to next iteration, don't try to read from NULL fmt_ctx
                     } else {
-                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: ✅ Reconnected successfully! Finding stream info...\n", 
+                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: ✅ Reconnected successfully! Finding stream info...\n", 
                                source->source_index);
                         
                         // Need to find stream info again after reconnect
@@ -547,7 +547,7 @@ handle_error:
                         source->buffer.eof = 0;
                         pthread_mutex_unlock(&source->buffer.mutex);
                         
-                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
+                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
                                source->source_index);
                     }
                 }
@@ -571,10 +571,10 @@ handle_error:
         
         // Log first packet and every 100th packet after reconnection
         if (source->packets_read == 1) {
-            av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Received first packet (size=%d)\n", 
+            av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Received first packet (size=%d)\n", 
                    source->source_index, pkt->size);
         } else if (source->packets_read % 100 == 0) {
-            av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Reader] Source %d: Received %lld packets (latest size=%d)\n", 
+            av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Received %lld packets (latest size=%d)\n", 
                    source->source_index, source->packets_read, pkt->size);
         }
         
