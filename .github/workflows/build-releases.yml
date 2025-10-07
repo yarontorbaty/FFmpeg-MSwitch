@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-macos-arm64:
     runs-on: macos-latest  # Apple Silicon runner
