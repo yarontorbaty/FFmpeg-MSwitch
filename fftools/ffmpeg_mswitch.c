@@ -37,10 +37,12 @@
 #include <process.h>
 #define close closesocket
 #define getpid _getpid
-typedef int pid_t;
-// Windows doesn't have wait/fork, these are for the subprocess code which we may not use on Windows
-#define WEXITSTATUS(x) (x)
-#define WIFEXITED(x) 1
+// Windows socket compatibility
+#define setsockopt_cast (const char *)
+// Windows doesn't have these Unix APIs
+#define O_NONBLOCK 0
+#define O_WRONLY _O_WRONLY
+#define usleep(x) Sleep((x)/1000)
 #else
 #include <unistd.h>
 #include <sys/socket.h>
@@ -51,6 +53,7 @@ typedef int pid_t;
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#define setsockopt_cast
 #endif
 
 // External global context declared in ffmpeg_opt.c
@@ -134,6 +137,9 @@ static int mswitch_parse_sources(MSwitchContext *msw, const char *sources_str)
     
     return (i == 0) ? AVERROR(EINVAL) : 0;
 }
+
+#ifndef _WIN32
+// Unix-only functions (subprocess management, fcntl, fork, etc.)
 
 static int mswitch_parse_health_thresholds(MSwitchContext *msw, const char *thresholds_str)
 {
@@ -506,7 +512,7 @@ static void *mswitch_udp_forwarder_thread(void *arg)
         fcntl(source_sockets[i], F_SETFL, flags | O_NONBLOCK);
         
         int reuse = 1;
-        setsockopt(source_sockets[i], SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+        setsockopt(source_sockets[i], SOL_SOCKET, SO_REUSEADDR, setsockopt_cast &reuse, sizeof(reuse));
         
         // Bind to source port
         struct sockaddr_in addr;
@@ -831,6 +837,8 @@ static void* mswitch_monitor_subprocess_thread(void *arg)
 // UDP PROXY (Phase 2)
 // ============================================================================
 
+#endif // _WIN32
+
 /**
  * Create and configure a UDP socket
  */
@@ -849,17 +857,24 @@ static int mswitch_create_udp_socket(MSwitchContext *msw, int port, int *sock_fd
     }
     
     // Set socket options
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, setsockopt_cast &reuse, sizeof(reuse)) < 0) {
         mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] Failed to set SO_REUSEADDR: %s\n", 
                    strerror(errno));
     }
     
     // Set non-blocking mode
+#ifdef _WIN32
+    u_long mode = 1;
+    if (ioctlsocket(sock, FIONBIO, &mode) != 0) {
+        mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] Failed to set non-blocking mode\n");
+    }
+#else
     int flags = fcntl(sock, F_GETFL, 0);
     if (flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
         mswitch_log(msw, AV_LOG_WARNING, "[UDP Proxy] Failed to set non-blocking mode: %s\n", 
                    strerror(errno));
     }
+#endif
     
     // Bind to port
     memset(&addr, 0, sizeof(addr));
@@ -2022,7 +2037,7 @@ static void *mswitch_webhook_server_thread(void *arg)
     }
     
     // Set socket options
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, setsockopt_cast &opt, sizeof(opt))) {
         mswitch_log(msw, AV_LOG_ERROR, "Webhook setsockopt failed\n");
         close(server_fd);
         return NULL;
@@ -2213,8 +2228,6 @@ int mswitch_webhook_start(MSwitchContext *msw)
         mswitch_log(msw, AV_LOG_ERROR, "Failed to create webhook server thread: %d\n", ret);
         return AVERROR(ret);
     }
-    
-    pthread_detach(msw->webhook.server_thread);
     
     // Give the server time to start
     usleep(100000); // 100ms
