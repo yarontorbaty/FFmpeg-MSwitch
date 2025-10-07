@@ -53,7 +53,13 @@ jobs:
       
       - name: Package
         run: |
-          VERSION=$(git describe --tags --always)
+          # Extract version from GitHub ref or use commit SHA
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.sha }}"
+            VERSION="${VERSION:0:7}"
+          fi
           PACKAGE_NAME="ffmpeg-mswitch-macos-arm64-${VERSION}"
           mkdir -p "releases/${PACKAGE_NAME}"
           
@@ -131,7 +137,13 @@ jobs:
       
       - name: Package
         run: |
-          VERSION=$(git describe --tags --always)
+          # Extract version from GitHub ref or use commit SHA
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.sha }}"
+            VERSION="${VERSION:0:7}"
+          fi
           PACKAGE_NAME="ffmpeg-mswitch-macos-x86_64-${VERSION}"
           mkdir -p "releases/${PACKAGE_NAME}"
           
@@ -212,7 +224,13 @@ jobs:
       
       - name: Package
         run: |
-          VERSION=$(git describe --tags --always)
+          # Extract version from GitHub ref or use commit SHA
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.sha }}"
+            VERSION="${VERSION:0:7}"
+          fi
           PACKAGE_NAME="ffmpeg-mswitch-linux-x86_64-${VERSION}"
           mkdir -p "releases/${PACKAGE_NAME}"
           
@@ -303,8 +321,15 @@ jobs:
           if [ -f mswitch_srt ]; then cp mswitch_srt ../../build/bin/; fi
       
       - name: Package
+        shell: bash
         run: |
-          VERSION=$(git describe --tags --always)
+          # Extract version from GitHub ref or use commit SHA
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.sha }}"
+            VERSION="${VERSION:0:7}"
+          fi
           PACKAGE_NAME="ffmpeg-mswitch-windows-x86_64-${VERSION}"
           mkdir -p "releases/${PACKAGE_NAME}"
           
