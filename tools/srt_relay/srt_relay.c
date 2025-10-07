@@ -45,6 +45,18 @@ typedef struct {
 
 RelayServer server;
 
+// Custom SRT log handler to suppress verbose messages
+void srt_log_handler(void* opaque, int level, const char* file, int line, const char* area, const char* message) {
+    // Suppress "no pending connection" messages (expected in non-blocking mode)
+    if (strstr(message, "no pending connection") != NULL) {
+        return;
+    }
+    // Only log actual errors
+    if (level <= LOG_ERR) {
+        fprintf(stderr, "SRT Error: %s\n", message);
+    }
+}
+
 void signal_handler(int sig) {
     printf("\nShutting down...\n");
     server.running = 0;
@@ -202,6 +214,10 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Error: srt_startup failed\n");
         return 1;
     }
+    
+    // Set custom log handler to suppress verbose messages
+    srt_setloghandler(NULL, srt_log_handler);
+    srt_setloglevel(LOG_ERR);
     
     // Parse arguments
     server.listen_port = atoi(argv[1]);
