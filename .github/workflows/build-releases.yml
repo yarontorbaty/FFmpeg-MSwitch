@@ -382,7 +382,7 @@ jobs:
           path: artifacts
       
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/macos-arm64/*
@@ -392,5 +392,4 @@ jobs:
           body_path: releases/RELEASE_NOTES.md
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
