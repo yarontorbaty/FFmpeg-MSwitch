@@ -1,0 +1,352 @@
+name: Build FFmpeg MSwitch Releases
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-latest  # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          brew install nasm pkg-config x264 x265 aom srt freetype fontconfig harfbuzz
+      
+      - name: Configure
+        run: |
+          ./configure \
+            --prefix="${PWD}/build" \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-nonfree \
+            --enable-libx264 \
+            --enable-libx265 \
+            --enable-libaom \
+            --enable-libsrt \
+            --enable-libfreetype \
+            --enable-libfontconfig \
+            --enable-libharfbuzz \
+            --enable-stripping \
+            --disable-debug \
+            --extra-cflags="-O3 -I/opt/homebrew/include" \
+            --extra-ldflags="-L/opt/homebrew/lib" \
+            --pkg-config-flags=--static
+      
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+      
+      - name: Install
+        run: make install
+      
+      - name: Build SRT Relay
+        run: |
+          cd tools/srt_relay
+          make
+          mkdir -p ../../build/bin
+          cp srt_relay ../../build/bin/
+          cp mswitch_srt ../../build/bin/
+      
+      - name: Package
+        run: |
+          VERSION=$(git describe --tags --always)
+          PACKAGE_NAME="ffmpeg-mswitch-macos-arm64-${VERSION}"
+          mkdir -p "releases/${PACKAGE_NAME}"
+          
+          # Copy binaries
+          cp build/bin/ffmpeg "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffprobe "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffplay "releases/${PACKAGE_NAME}/"
+          cp build/bin/srt_relay "releases/${PACKAGE_NAME}/"
+          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          
+          # Copy documentation
+          cp README.md "releases/${PACKAGE_NAME}/"
+          cp LICENSE.md "releases/${PACKAGE_NAME}/"
+          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          
+          # Create version file
+          echo "FFmpeg MSwitch - macOS arm64" > "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Built: $(date)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Platform: macOS arm64 (Apple Silicon)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          
+          # Create archive
+          cd releases
+          tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
+          shasum -a 256 "${PACKAGE_NAME}.tar.gz" > "${PACKAGE_NAME}.tar.gz.sha256"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: releases/*.tar.gz*
+
+  build-macos-intel:
+    runs-on: macos-13  # Intel runner
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          brew install nasm pkg-config x264 x265 aom srt freetype fontconfig harfbuzz
+      
+      - name: Configure
+        run: |
+          ./configure \
+            --prefix="${PWD}/build" \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-nonfree \
+            --enable-libx264 \
+            --enable-libx265 \
+            --enable-libaom \
+            --enable-libsrt \
+            --enable-libfreetype \
+            --enable-libfontconfig \
+            --enable-libharfbuzz \
+            --enable-stripping \
+            --disable-debug \
+            --extra-cflags="-O3" \
+            --pkg-config-flags=--static
+      
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+      
+      - name: Install
+        run: make install
+      
+      - name: Build SRT Relay
+        run: |
+          cd tools/srt_relay
+          make
+          mkdir -p ../../build/bin
+          cp srt_relay ../../build/bin/
+          cp mswitch_srt ../../build/bin/
+      
+      - name: Package
+        run: |
+          VERSION=$(git describe --tags --always)
+          PACKAGE_NAME="ffmpeg-mswitch-macos-x86_64-${VERSION}"
+          mkdir -p "releases/${PACKAGE_NAME}"
+          
+          cp build/bin/ffmpeg "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffprobe "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffplay "releases/${PACKAGE_NAME}/"
+          cp build/bin/srt_relay "releases/${PACKAGE_NAME}/"
+          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          cp README.md "releases/${PACKAGE_NAME}/"
+          cp LICENSE.md "releases/${PACKAGE_NAME}/"
+          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          
+          echo "FFmpeg MSwitch - macOS x86_64" > "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Built: $(date)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Platform: macOS x86_64 (Intel)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          
+          cd releases
+          tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
+          shasum -a 256 "${PACKAGE_NAME}.tar.gz" > "${PACKAGE_NAME}.tar.gz.sha256"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x86_64
+          path: releases/*.tar.gz*
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            nasm yasm pkg-config \
+            libx264-dev libx265-dev libaom-dev \
+            libsrt-openssl-dev \
+            libfreetype6-dev libfontconfig1-dev libharfbuzz-dev \
+            build-essential
+      
+      - name: Configure
+        run: |
+          ./configure \
+            --prefix="${PWD}/build" \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-nonfree \
+            --enable-libx264 \
+            --enable-libx265 \
+            --enable-libaom \
+            --enable-libsrt \
+            --enable-libfreetype \
+            --enable-libfontconfig \
+            --enable-libharfbuzz \
+            --enable-stripping \
+            --disable-debug \
+            --extra-cflags="-O3" \
+            --pkg-config-flags=--static \
+            --extra-ldflags="-static-libgcc -static-libstdc++"
+      
+      - name: Build
+        run: make -j$(nproc)
+      
+      - name: Install
+        run: make install
+      
+      - name: Build SRT Relay
+        run: |
+          cd tools/srt_relay
+          make
+          mkdir -p ../../build/bin
+          cp srt_relay ../../build/bin/
+          cp mswitch_srt ../../build/bin/
+      
+      - name: Package
+        run: |
+          VERSION=$(git describe --tags --always)
+          PACKAGE_NAME="ffmpeg-mswitch-linux-x86_64-${VERSION}"
+          mkdir -p "releases/${PACKAGE_NAME}"
+          
+          cp build/bin/ffmpeg "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffprobe "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffplay "releases/${PACKAGE_NAME}/"
+          cp build/bin/srt_relay "releases/${PACKAGE_NAME}/"
+          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          cp README.md "releases/${PACKAGE_NAME}/"
+          cp LICENSE.md "releases/${PACKAGE_NAME}/"
+          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          
+          echo "FFmpeg MSwitch - Linux x86_64" > "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Built: $(date)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Platform: Linux x86_64" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          
+          cd releases
+          tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
+          sha256sum "${PACKAGE_NAME}.tar.gz" > "${PACKAGE_NAME}.tar.gz.sha256"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: releases/*.tar.gz*
+
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-x264
+            mingw-w64-x86_64-x265
+            mingw-w64-x86_64-aom
+            mingw-w64-x86_64-srt
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-harfbuzz
+      
+      - name: Configure
+        run: |
+          ./configure \
+            --prefix="${PWD}/build" \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-nonfree \
+            --enable-libx264 \
+            --enable-libx265 \
+            --enable-libaom \
+            --enable-libsrt \
+            --enable-libfreetype \
+            --enable-libfontconfig \
+            --enable-libharfbuzz \
+            --enable-stripping \
+            --disable-debug \
+            --extra-cflags="-O3" \
+            --pkg-config-flags=--static
+      
+      - name: Build
+        run: make -j$(nproc)
+      
+      - name: Install
+        run: make install
+      
+      - name: Build SRT Relay
+        run: |
+          cd tools/srt_relay
+          make
+          mkdir -p ../../build/bin
+          cp srt_relay.exe ../../build/bin/ || cp srt_relay ../../build/bin/srt_relay.exe
+          cp mswitch_srt ../../build/bin/
+      
+      - name: Package
+        run: |
+          VERSION=$(git describe --tags --always)
+          PACKAGE_NAME="ffmpeg-mswitch-windows-x86_64-${VERSION}"
+          mkdir -p "releases/${PACKAGE_NAME}"
+          
+          cp build/bin/ffmpeg.exe "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffprobe.exe "releases/${PACKAGE_NAME}/"
+          cp build/bin/ffplay.exe "releases/${PACKAGE_NAME}/"
+          cp build/bin/srt_relay.exe "releases/${PACKAGE_NAME}/"
+          cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/"
+          cp README.md "releases/${PACKAGE_NAME}/"
+          cp LICENSE.md "releases/${PACKAGE_NAME}/"
+          cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md"
+          
+          echo "FFmpeg MSwitch - Windows x86_64" > "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Built: $(date)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Platform: Windows x86_64" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          
+          cd releases
+          zip -r "${PACKAGE_NAME}.zip" "${PACKAGE_NAME}"
+          sha256sum "${PACKAGE_NAME}.zip" > "${PACKAGE_NAME}.zip.sha256"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: releases/*.zip*
+
+  create-release:
+    needs: [build-macos-arm64, build-macos-intel, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/macos-arm64/*
+            artifacts/macos-x86_64/*
+            artifacts/linux-x86_64/*
+            artifacts/windows-x86_64/*
+          body_path: releases/RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
