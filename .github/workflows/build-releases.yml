@@ -283,8 +283,6 @@ jobs:
             mingw-w64-x86_64-freetype
             mingw-w64-x86_64-fontconfig
             mingw-w64-x86_64-harfbuzz
-            zip
-            unzip
             mingw-w64-x86_64-SDL2
       
       - name: Configure
@@ -322,8 +320,8 @@ jobs:
           if [ -f srt_relay ]; then cp srt_relay ../../build/bin/srt_relay.exe; fi
           if [ -f mswitch_srt ]; then cp mswitch_srt ../../build/bin/; fi
       
-      - name: Package
-        shell: bash
+      - name: Prepare Package
+        shell: msys2 {0}
         run: |
           # Extract version from GitHub ref or use commit SHA
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
@@ -349,9 +347,16 @@ jobs:
           echo "Built: $(date)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
           echo "Platform: Windows x86_64" >> "releases/${PACKAGE_NAME}/VERSION.txt"
           
-          cd releases
-          zip -r "${PACKAGE_NAME}.zip" "${PACKAGE_NAME}"
-          sha256sum "${PACKAGE_NAME}.zip" > "${PACKAGE_NAME}.zip.sha256"
+          # Save package name for next step
+          echo "${PACKAGE_NAME}" > releases/package_name.txt
+      
+      - name: Create ZIP Archive
+        shell: pwsh
+        run: |
+          $PACKAGE_NAME = Get-Content releases/package_name.txt
+          Compress-Archive -Path "releases/$PACKAGE_NAME" -DestinationPath "releases/${PACKAGE_NAME}.zip"
+          $hash = (Get-FileHash "releases/${PACKAGE_NAME}.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${PACKAGE_NAME}.zip" | Out-File -FilePath "releases/${PACKAGE_NAME}.zip.sha256" -Encoding ASCII
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
