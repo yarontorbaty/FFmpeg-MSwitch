@@ -74,7 +74,7 @@
 #include "libavutil/time.h"
 
 #include "libavformat/avformat.h"
-#include "libavformat/mswitchdirect.h"
+// Don't include mswitchdirect.h - functions not available in fftools on all platforms
 
 #include "libavdevice/avdevice.h"
 
@@ -563,6 +563,19 @@ void update_benchmark(const char *fmt, ...)
         }
         current_time = t;
     }
+}
+
+// Forward declarations for mswitchdirect CLI functions
+// These are stub implementations to avoid linking issues on Windows
+static int mswitchdirect_cli_switch(int source_index) {
+    // mswitchdirect demuxer is not accessible from fftools on all platforms
+    // This is a stub - actual implementation would need access to demuxer context
+    return AVERROR(ENOSYS);
+}
+
+static void mswitchdirect_cli_status(void) {
+    // mswitchdirect demuxer is not accessible from fftools on all platforms
+    // This is a stub
 }
 
 static void print_report(int is_last_report, int64_t timer_start, int64_t cur_time, int64_t pts)
