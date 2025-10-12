@@ -34,6 +34,10 @@
 #include "os_support.h"
 #include "url.h"
 #include "urldecode.h"
+#include "srt_bandwidth.h"
+
+// Forward declaration for external use
+int ff_srt_get_stats(URLContext *h, SRTNetworkStats *stats);
 
 /* This is for MPEG-TS and it's a default SRTO_PAYLOADSIZE for SRTT_LIVE (8 TS packets) */
 #ifndef SRT_LIVE_DEFAULT_PAYLOAD_SIZE
@@ -63,6 +67,11 @@ typedef struct SRTContext {
     int64_t maxbw;
     int pbkeylen;
     char *passphrase;
+    
+    // Bandwidth monitoring
+    int enable_stats;
+    int64_t last_stats_time;
+    SRTNetworkStats last_stats;
 #if SRT_VERSION_VALUE >= 0x010302
     int enforced_encryption;
     int kmrefreshrate;
@@ -146,6 +155,7 @@ static const AVOption libsrt_options[] = {
     { "file",           NULL, 0, AV_OPT_TYPE_CONST,  { .i64 = SRTT_FILE }, INT_MIN, INT_MAX, .flags = D|E, .unit = "transtype" },
     { "linger",         "Number of seconds that the socket waits for unsent data when closing", OFFSET(linger),           AV_OPT_TYPE_INT,      { .i64 = -1 }, -1, INT_MAX,   .flags = D|E },
     { "tsbpd",          "Timestamp-based packet delivery",                                      OFFSET(tsbpd),            AV_OPT_TYPE_BOOL,     { .i64 = -1 }, -1, 1,         .flags = D|E },
+    { "enable_stats",   "Enable bandwidth statistics monitoring",                               OFFSET(enable_stats),     AV_OPT_TYPE_BOOL,     { .i64 = 0 },  0,  1,         .flags = D|E },
     { NULL }
 };
 
@@ -590,6 +600,22 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
     if (ret < 0) {
         ret = libsrt_neterrno(h);
     }
+    
+    // Update statistics periodically if enabled
+    if (s->enable_stats && ret > 0) {
+        int64_t current_time = av_gettime_relative();
+        if (current_time - s->last_stats_time > 1000000) {  // Every 1 second
+            srt_get_network_stats(s->fd, &s->last_stats);
+            s->last_stats_time = current_time;
+            
+            // Log statistics if verbose
+            av_log(h, AV_LOG_VERBOSE, 
+                   "SRT Stats: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms\n",
+                   s->last_stats.bandwidth_mbps,
+                   s->last_stats.packet_loss_rate,
+                   s->last_stats.rtt_ms);
+        }
+    }
 
     return ret;
 }
@@ -604,6 +630,21 @@ static int libsrt_close(URLContext *h)
     srt_cleanup();
 
     return 0;
+}
+
+int ff_srt_get_stats(URLContext *h, SRTNetworkStats *stats)
+{
+    SRTContext *s;
+    
+    if (!h || !stats)
+        return -1;
+    
+    s = h->priv_data;
+    
+    if (s->fd == SRT_INVALID_SOCK)
+        return -1;
+    
+    return srt_get_network_stats(s->fd, stats);
 }
 
 static const AVClass libsrt_class = {
