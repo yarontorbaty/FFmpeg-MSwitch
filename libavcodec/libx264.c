@@ -46,6 +46,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// SRT-aware rate control
+#include "libavformat/srt_bandwidth.h"
+
 // from x264.h, for quant_offsets, Macroblocks are 16x16
 // blocks of pixels (with respect to the luma plane)
 #define MB_SIZE 16
@@ -112,6 +115,14 @@ typedef struct X264Context {
     int chroma_offset;
     int scenechange_threshold;
     int noise_reduction;
+    
+    // SRT-aware rate control
+    int srt_rate_control;  // Enable SRT-based rate control
+    char *srt_url;  // SRT URL from output (set via env var)
+    int64_t srt_min_bitrate;
+    int64_t srt_max_bitrate;
+    int64_t last_srt_check_time;
+    int64_t last_applied_bitrate;
     int udu_sei;
 
     AVDictionary *x264_params;
@@ -606,6 +617,9 @@ fail:
     return ret;
 }
 
+// Forward declaration for SRT stats (external linkage)
+extern int ff_srt_get_last_stats(SRTNetworkStats *stats);
+
 static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                       int *got_packet)
 {
@@ -616,6 +630,70 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
     int pict_type;
     int64_t wallclock = 0;
     X264Opaque *out_opaque;
+
+    // SRT-aware rate control: adjust bitrate based on network conditions
+    if (x4->srt_rate_control && frame) {
+        int64_t current_time = av_gettime_relative();
+        
+        // Check every 1 second
+        if (current_time - x4->last_srt_check_time > 1000000) {
+            SRTNetworkStats stats;
+            
+            // Try to get SRT stats from global state
+            if (ff_srt_get_last_stats(&stats) == 0) {
+                // Calculate target bitrate based on available bandwidth
+                double available_bw_bps = stats.bandwidth_mbps * 1000000.0;
+                int64_t target_bitrate = (int64_t)(available_bw_bps * 0.8); // 80% of available BW
+                
+                // Reduce further based on packet loss
+                if (stats.packet_loss_rate > 5.0) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.5); // Severe loss
+                } else if (stats.packet_loss_rate > 2.0) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.7); // High loss
+                } else if (stats.packet_loss_rate > 0.5) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.85); // Moderate loss
+                }
+                
+                // Reduce based on RTT (high RTT = congestion)
+                if (stats.rtt_ms > 200) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.6);
+                } else if (stats.rtt_ms > 100) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.8);
+                }
+                
+                // Clamp to min/max
+                if (target_bitrate < x4->srt_min_bitrate)
+                    target_bitrate = x4->srt_min_bitrate;
+                if (target_bitrate > x4->srt_max_bitrate)
+                    target_bitrate = x4->srt_max_bitrate;
+                
+                // Only update if significant change (>10%)
+                int64_t bitrate_diff = target_bitrate > x4->last_applied_bitrate ?
+                    target_bitrate - x4->last_applied_bitrate :
+                    x4->last_applied_bitrate - target_bitrate;
+                
+                if (bitrate_diff > x4->last_applied_bitrate / 10) {
+                    // Update x264 parameters
+                    x4->params.rc.i_bitrate = target_bitrate / 1000; // x264 uses kbps
+                    x4->params.rc.i_vbv_max_bitrate = target_bitrate / 1000;
+                    
+                    // Reconfigure encoder
+                    if (x264_encoder_reconfig(x4->enc, &x4->params) == 0) {
+                        av_log(ctx, AV_LOG_INFO,
+                               "[SRT Rate Control] BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms → Bitrate: %lld → %lld bps (%.2f Mbps)\n",
+                               stats.bandwidth_mbps, stats.packet_loss_rate, stats.rtt_ms,
+                               (long long)x4->last_applied_bitrate, (long long)target_bitrate,
+                               target_bitrate / 1000000.0);
+                        x4->last_applied_bitrate = target_bitrate;
+                    } else {
+                        av_log(ctx, AV_LOG_WARNING, "[SRT Rate Control] Failed to reconfigure encoder\n");
+                    }
+                }
+            }
+            
+            x4->last_srt_check_time = current_time;
+        }
+    }
 
     ret = setup_frame(ctx, frame, &pic_in);
     if (ret < 0)
@@ -1116,6 +1194,17 @@ static av_cold int X264_init(AVCodecContext *avctx)
     }
     x4->params.rc.i_vbv_buffer_size = avctx->rc_buffer_size / 1000;
     x4->params.rc.i_vbv_max_bitrate = avctx->rc_max_rate    / 1000;
+    
+    // Initialize SRT rate control
+    if (x4->srt_rate_control) {
+        x4->last_srt_check_time = 0;
+        x4->last_applied_bitrate = avctx->bit_rate > 0 ? avctx->bit_rate : x4->srt_max_bitrate;
+        av_log(avctx, AV_LOG_INFO, 
+               "[SRT Rate Control] Enabled: min=%lld bps (%.2f Mbps), max=%lld bps (%.2f Mbps), initial=%lld bps (%.2f Mbps)\n",
+               (long long)x4->srt_min_bitrate, x4->srt_min_bitrate / 1000000.0,
+               (long long)x4->srt_max_bitrate, x4->srt_max_bitrate / 1000000.0,
+               (long long)x4->last_applied_bitrate, x4->last_applied_bitrate / 1000000.0);
+    }
     x4->params.rc.b_stat_write      = avctx->flags & AV_CODEC_FLAG_PASS1;
     if (avctx->flags & AV_CODEC_FLAG_PASS2) {
         x4->params.rc.b_stat_read = 1;
@@ -1570,6 +1659,9 @@ static const AVOption options[] = {
     { "udu_sei",      "Use user data unregistered SEI if available",      OFFSET(udu_sei),  AV_OPT_TYPE_BOOL,   { .i64 = 0 }, 0, 1, VE },
     { "x264-params",  "Override the x264 configuration using a :-separated list of key=value parameters", OFFSET(x264_params), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "mb_info",      "Set mb_info data through AVSideData, only useful when used from the API", OFFSET(mb_info), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "srt_rate_control", "Enable SRT network-aware rate control (requires SRT output with enable_stats=1)", OFFSET(srt_rate_control), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "srt_min_bitrate", "Minimum bitrate for SRT rate control (bps)", OFFSET(srt_min_bitrate), AV_OPT_TYPE_INT64, { .i64 = 500000 }, 100000, INT64_MAX, VE },
+    { "srt_max_bitrate", "Maximum bitrate for SRT rate control (bps)", OFFSET(srt_max_bitrate), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, 500000, INT64_MAX, VE },
     { NULL },
 };
 

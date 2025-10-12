@@ -39,6 +39,17 @@
 // Forward declaration for external use
 int ff_srt_get_stats(URLContext *h, SRTNetworkStats *stats);
 
+// Global stats for encoder access (last known stats from any SRT connection)
+static SRTNetworkStats global_srt_stats = {0};
+static int global_srt_stats_valid = 0;
+
+int ff_srt_get_last_stats(SRTNetworkStats *stats) {
+    if (!stats || !global_srt_stats_valid)
+        return -1;
+    *stats = global_srt_stats;
+    return 0;
+}
+
 /* This is for MPEG-TS and it's a default SRTO_PAYLOADSIZE for SRTT_LIVE (8 TS packets) */
 #ifndef SRT_LIVE_DEFAULT_PAYLOAD_SIZE
 #define SRT_LIVE_DEFAULT_PAYLOAD_SIZE 1316
@@ -608,8 +619,12 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
             srt_get_network_stats(s->fd, &s->last_stats);
             s->last_stats_time = current_time;
             
-            // Log statistics if verbose
-            av_log(h, AV_LOG_VERBOSE, 
+            // Update global stats for encoder access
+            global_srt_stats = s->last_stats;
+            global_srt_stats_valid = 1;
+            
+            // Log statistics
+            av_log(h, AV_LOG_INFO, 
                    "SRT Stats: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms\n",
                    s->last_stats.bandwidth_mbps,
                    s->last_stats.packet_loss_rate,

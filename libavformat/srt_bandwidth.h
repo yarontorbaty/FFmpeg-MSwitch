@@ -106,5 +106,8 @@ int srt_connection_is_healthy(const SRTNetworkStats *stats,
                               double max_loss_rate,
                               double max_rtt_ms);
 
+// Global stats access for encoder rate control
+int ff_srt_get_last_stats(SRTNetworkStats *stats);
+
 #endif /* AVFORMAT_SRT_BANDWIDTH_H */
 

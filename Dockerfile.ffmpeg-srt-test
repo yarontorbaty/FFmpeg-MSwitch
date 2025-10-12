@@ -1,0 +1,78 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    pkg-config \
+    libssl-dev \
+    iproute2 \
+    netcat \
+    yasm \
+    nasm \
+    libx264-dev \
+    libx265-dev \
+    libnuma-dev \
+    libvpx-dev \
+    libfdk-aac-dev \
+    libmp3lame-dev \
+    libopus-dev \
+    libvorbis-dev \
+    libfreetype6-dev \
+    libharfbuzz-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build enhanced SRT from parent directory
+WORKDIR /srt-build
+# Note: Build context should be parent directory
+# Run: docker build -f FFmpeg/Dockerfile.ffmpeg-srt-test -t ffmpeg-enhanced-srt .
+# from /Users/yarontorbaty/Documents/Code/
+ADD srt/ /srt-build/
+RUN mkdir -p build && cd build && \
+    cmake .. -DENABLE_APPS=ON -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+# Verify SRT is installed
+RUN pkg-config --modversion srt || echo "SRT pkg-config not found"
+RUN ldconfig -p | grep srt || echo "SRT lib not in ldconfig"
+
+# Build FFmpeg with enhanced SRT
+WORKDIR /ffmpeg-build
+COPY FFmpeg/ /ffmpeg-build/
+
+# Configure and build FFmpeg
+RUN PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/lib/pkgconfig \
+    LDFLAGS="-L/usr/local/lib" \
+    CFLAGS="-I/usr/local/include" \
+    ./configure \
+    --enable-gpl \
+    --enable-nonfree \
+    --enable-libsrt \
+    --enable-libx264 \
+    --enable-libx265 \
+    --enable-libfreetype \
+    --enable-libharfbuzz \
+    --enable-libvpx \
+    --enable-libfdk-aac \
+    --enable-libmp3lame \
+    --enable-libopus \
+    --enable-libvorbis \
+    --enable-openssl \
+    --extra-ldflags="-L/usr/local/lib" \
+    --extra-cflags="-I/usr/local/include" \
+    --prefix=/usr/local
+
+RUN make -j$(nproc)
+RUN make install
+RUN ldconfig
+
+# Verify FFmpeg has SRT support
+RUN /usr/local/bin/ffmpeg -protocols 2>&1 | grep srt || echo "SRT protocol not found in FFmpeg"
+RUN /usr/local/bin/ffmpeg -version
+
+WORKDIR /test
+CMD ["/bin/bash"]
+

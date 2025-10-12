@@ -54,6 +54,8 @@ export CFLAGS="-I${SRT_DIR}"
     --enable-libx264 \
     --enable-libx265 \
     --enable-libsrt \
+    --enable-libfreetype \
+    --enable-libharfbuzz \
     --extra-ldflags="-L${SRT_BUILD_DIR} -Wl,-rpath,${SRT_BUILD_DIR}" \
     --extra-cflags="-I${SRT_DIR}"
 

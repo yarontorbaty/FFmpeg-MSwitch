@@ -1,0 +1,97 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    pkg-config \
+    libssl-dev \
+    iproute2 \
+    netcat \
+    yasm \
+    nasm \
+    libnuma-dev \
+    libvpx-dev \
+    libfdk-aac-dev \
+    libmp3lame-dev \
+    libopus-dev \
+    libvorbis-dev \
+    libfreetype6-dev \
+    libharfbuzz-dev \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build enhanced SRT from parent directory
+WORKDIR /srt-build
+ADD srt/ /srt-build/
+RUN mkdir -p build && cd build && \
+    cmake .. -DENABLE_APPS=ON -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+# Verify SRT is installed
+RUN pkg-config --modversion srt || echo "SRT pkg-config not found"
+RUN ldconfig -p | grep srt || echo "SRT lib not in ldconfig"
+
+# Build x264 from source WITH TCP control
+WORKDIR /x264-build
+RUN git clone --depth 1 https://code.videolan.org/videolan/x264.git . && \
+    ./configure \
+        --enable-shared \
+        --enable-static \
+        --enable-pic \
+        --disable-cli \
+        --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+# Verify x264 is installed
+RUN pkg-config --modversion x264 && \
+    ldconfig -p | grep x264
+
+# Build x265 from apt (we only need TCP for x264)
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    libx265-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build FFmpeg with enhanced SRT and custom x264
+WORKDIR /ffmpeg-build
+COPY FFmpeg/ /ffmpeg-build/
+
+# Configure and build FFmpeg
+RUN PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/lib/pkgconfig \
+    LDFLAGS="-L/usr/local/lib" \
+    CFLAGS="-I/usr/local/include" \
+    ./configure \
+    --enable-gpl \
+    --enable-nonfree \
+    --enable-libsrt \
+    --enable-libx264 \
+    --enable-libx265 \
+    --enable-libfreetype \
+    --enable-libharfbuzz \
+    --enable-libvpx \
+    --enable-libfdk-aac \
+    --enable-libmp3lame \
+    --enable-libopus \
+    --enable-libvorbis \
+    --enable-openssl \
+    --extra-ldflags="-L/usr/local/lib" \
+    --extra-cflags="-I/usr/local/include" \
+    --prefix=/usr/local
+
+RUN make -j$(nproc)
+RUN make install
+RUN ldconfig
+
+# Verify FFmpeg has SRT support and can use x264
+RUN /usr/local/bin/ffmpeg -protocols 2>&1 | grep srt || echo "SRT protocol not found in FFmpeg"
+RUN /usr/local/bin/ffmpeg -encoders 2>&1 | grep libx264 || echo "libx264 encoder not found"
+RUN /usr/local/bin/ffmpeg -version
+
+WORKDIR /test
+CMD ["/bin/bash"]
+
