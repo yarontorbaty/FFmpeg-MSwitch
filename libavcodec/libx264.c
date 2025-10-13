@@ -143,6 +143,7 @@ typedef struct X264Context {
     int enable_encoder_restart;  // Enable encoder restart for instant bitrate change (non-graceful)
     int enable_dynamic_gop;      // Enable dynamic GOP adjustment based on bitrate
     int min_fps_before_restart;  // Minimum FPS before triggering encoder restart (default 15)
+    int64_t last_encoder_restart_time;  // Last time encoder was restarted (rate limiting)
     int64_t original_fps_num;    // Original FPS numerator (for hybrid bitrate calc)
     int64_t original_fps_den;    // Original FPS denominator
     int64_t current_fps_num;     // Current FPS numerator for dynamic adjustment
@@ -862,6 +863,20 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                            // APPLY CHOSEN METHOD
                            if (use_encoder_restart) {
                                // METHOD 1: ENCODER RESTART - Instant bitrate change
+                               
+                               // RATE LIMITING: Don't restart more than once every 5 seconds
+                               int64_t time_since_last_restart = current_time - x4->last_encoder_restart_time;
+                               int64_t min_restart_interval = 5000000;  // 5 seconds in microseconds
+                               
+                               if (x4->last_encoder_restart_time > 0 && time_since_last_restart < min_restart_interval) {
+                                   av_log(ctx, AV_LOG_INFO, "[SRT] ⏸️  Encoder restart rate-limited (%.1fs since last, need %.1fs)\n",
+                                          time_since_last_restart / 1000000.0, min_restart_interval / 1000000.0);
+                                   
+                                   // Don't apply the change yet, wait for next check
+                                   x4->last_srt_check_time = current_time;
+                                   goto skip_encoder_changes;
+                               }
+                               
                                av_log(ctx, AV_LOG_INFO, "[SRT] ═══ ENCODER RESTART ═══\n");
                                
                                if (x4->enc) {
@@ -883,6 +898,7 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                                       current_bitrate / 1000000.0, target_bitrate / 1000000.0);
                                
                                x4->last_applied_bitrate = target_bitrate;
+                               x4->last_encoder_restart_time = current_time;  // Update rate limit timestamp
                                ctx->bit_rate = target_bitrate;
                                ctx->rc_max_rate = target_bitrate;
                                x4->http_control_skip_reconfig = 1;
@@ -919,6 +935,9 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                x4->last_srt_check_time = current_time;
         }
     }
+    
+skip_encoder_changes:
+    ; // Empty statement after label (C99 requirement)
 
     // HTTP-based encoder control
     if (x4->http_control_enable && x4->http_control_registered) {
@@ -1026,6 +1045,19 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                 
                 // ENCODER RESTART MODE: Close and reopen encoder for instant bitrate change
                 if (x4->enable_encoder_restart) {
+                    // RATE LIMITING: Don't restart more than once every 5 seconds
+                    int64_t current_time = av_gettime_relative();
+                    int64_t time_since_last_restart = current_time - x4->last_encoder_restart_time;
+                    int64_t min_restart_interval = 5000000;  // 5 seconds in microseconds
+                    
+                    if (x4->last_encoder_restart_time > 0 && time_since_last_restart < min_restart_interval) {
+                        av_log(ctx, AV_LOG_INFO, "[HTTP Control] ⏸️  Encoder restart rate-limited (%.1fs since last, need %.1fs)\n",
+                               time_since_last_restart / 1000000.0, min_restart_interval / 1000000.0);
+                        // Acknowledge the command but don't restart yet
+                        encoder_control_ack_command(x4);
+                        goto skip_http_changes;
+                    }
+                    
                     av_log(ctx, AV_LOG_INFO, "[HTTP Control] ═══ ENCODER RESTART MODE ═══\n");
                     av_log(ctx, AV_LOG_INFO, "[HTTP Control] Closing current encoder...\n");
                     
@@ -1048,6 +1080,8 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                     av_log(ctx, AV_LOG_INFO, "[HTTP Control] ✓ ✓ ✓ ENCODER RESTARTED ✓ ✓ ✓\n");
                     av_log(ctx, AV_LOG_INFO, "[HTTP Control] INSTANT bitrate change: %lld → %d kbps (non-graceful)\n",
                            current_bitrate, cmd.target_bitrate_kbps);
+                    
+                    x4->last_encoder_restart_time = current_time;  // Update rate limit timestamp
                     
                     // Update context
                     ctx->bit_rate = cmd.target_bitrate_kbps * 1000LL;
@@ -1116,6 +1150,9 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
             av_log(ctx, AV_LOG_INFO, "[HTTP Control] ═══ COMMAND COMPLETE ═══\n");
         }
     }
+    
+skip_http_changes:
+    ; // Empty statement after label (C99 requirement)
 
     ret = setup_frame(ctx, frame, &pic_in);
     if (ret < 0)
@@ -1629,6 +1666,7 @@ static av_cold int X264_init(AVCodecContext *avctx)
         x4->last_applied_bitrate = avctx->bit_rate > 0 ? avctx->bit_rate : x4->srt_max_bitrate;
         x4->aggressive_mode = 0;
         x4->original_gop_size = x4->params.i_keyint_max;
+        x4->last_encoder_restart_time = 0;  // Initialize rate limiting timestamp
         
         // Initialize smart hysteresis for upshift
         x4->upshift_pending_start_time = 0;
