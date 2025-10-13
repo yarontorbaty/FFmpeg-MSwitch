@@ -607,13 +607,8 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
             return ret;
     }
 
-    ret = srt_sendmsg(s->fd, buf, size, -1, 1);
-    if (ret < 0) {
-        ret = libsrt_neterrno(h);
-    }
-    
-    // Update statistics periodically if enabled
-    if (s->enable_stats && ret > 0) {
+    // Update statistics BEFORE sending (predictive vs reactive)
+    if (s->enable_stats) {
         int64_t current_time = av_gettime_relative();
         if (current_time - s->last_stats_time > 1000000) {  // Every 1 second
             srt_get_network_stats(s->fd, &s->last_stats);
@@ -630,6 +625,11 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
                    s->last_stats.packet_loss_rate,
                    s->last_stats.rtt_ms);
         }
+    }
+
+    ret = srt_sendmsg(s->fd, buf, size, -1, 1);
+    if (ret < 0) {
+        ret = libsrt_neterrno(h);
     }
 
     return ret;

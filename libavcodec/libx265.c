@@ -41,6 +41,7 @@
 #include "packet_internal.h"
 #include "atsc_a53.h"
 #include "sei.h"
+#include "encoder_control.h"
 
 #if defined(X265_ENABLE_ALPHA) && MAX_LAYERS > 2
 #define FF_X265_MAX_LAYERS MAX_LAYERS
@@ -89,6 +90,12 @@ typedef struct libx265Context {
     int roi_warned;
 
     DOVIContext dovi;
+    
+    // HTTP-based encoder control
+    int http_control_enable;
+    int http_control_port;
+    int http_control_registered;
+    int http_enable_encoder_restart;
 } libx265Context;
 
 static int is_keyframe(NalUnitType naltype)
@@ -143,6 +150,12 @@ static void rd_release(libx265Context *ctx, int idx)
 static av_cold int libx265_encode_close(AVCodecContext *avctx)
 {
     libx265Context *ctx = avctx->priv_data;
+
+    // Unregister HTTP control
+    if (ctx->http_control_registered) {
+        encoder_control_unregister(ctx);
+        ctx->http_control_registered = 0;
+    }
 
     ctx->api->param_free(ctx->params);
     av_freep(&ctx->sei_data);
@@ -595,6 +608,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
         memset(avctx->extradata + avctx->extradata_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
     }
 
+    // Register HTTP encoder control
+    if (ctx->http_control_enable) {
+        encoder_control_init(ctx->http_control_port);
+        encoder_control_register(ctx, "libx265");
+        ctx->http_control_registered = 1;
+        av_log(avctx, AV_LOG_INFO, "[libx265] HTTP control enabled on port %d\n", 
+               ctx->http_control_port);
+    }
+
     return 0;
 }
 
@@ -702,6 +724,57 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int i;
 
     ctx->api->picture_init(ctx->params, &x265pic);
+
+    // HTTP encoder control: Check for commands
+    if (ctx->http_control_registered) {
+        EncoderControlCommand cmd;
+        if (encoder_control_get_command(ctx, &cmd)) {
+            av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Received command: bitrate=%d kbps, force_idr=%d\n",
+                   cmd.target_bitrate_kbps, cmd.force_idr);
+            
+            if (cmd.target_bitrate_kbps > 0 && ctx->http_enable_encoder_restart) {
+                // NON-GRACEFUL MODE: Close and reopen encoder
+                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] ═══ ENCODER RESTART MODE ═══\n");
+                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Closing current encoder...\n");
+                
+                if (ctx->encoder) {
+                    ctx->api->encoder_close(ctx->encoder);
+                    ctx->encoder = NULL;
+                }
+                
+                // Update bitrate parameters
+                ctx->params->rc.bitrate = cmd.target_bitrate_kbps;
+                ctx->params->rc.vbvMaxBitrate = cmd.target_bitrate_kbps;
+                // VBV buffer: ~40ms for fast response
+                ctx->params->rc.vbvBufferSize = cmd.target_bitrate_kbps * 40 / 1000;
+                if (ctx->params->rc.vbvBufferSize < cmd.target_bitrate_kbps / 100)
+                    ctx->params->rc.vbvBufferSize = cmd.target_bitrate_kbps / 100;  // Min 10ms
+                
+                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Reopening encoder: bitrate=%d kbps, vbv_buf=%d kbps\n",
+                       cmd.target_bitrate_kbps, ctx->params->rc.vbvBufferSize);
+                
+                ctx->encoder = ctx->api->encoder_open(ctx->params);
+                if (!ctx->encoder) {
+                    av_log(avctx, AV_LOG_ERROR, "[libx265] [HTTP Control] ✗ ENCODER RESTART FAILED\n");
+                    return AVERROR_EXTERNAL;
+                }
+                
+                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] ✓ ✓ ✓ ENCODER RESTARTED ✓ ✓ ✓\n");
+                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] INSTANT bitrate change: %d kbps (non-graceful)\n",
+                       cmd.target_bitrate_kbps);
+                
+                // Update context
+                avctx->bit_rate = cmd.target_bitrate_kbps * 1000LL;
+            } else if (cmd.force_idr) {
+                // Force IDR without restart
+                ctx->forced_idr = 1;
+                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Forcing IDR frame\n");
+            }
+            
+            encoder_control_ack_command(ctx);
+            av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] ═══ COMMAND COMPLETE ═══\n");
+        }
+    }
 
     sei = &x265pic.userSEI;
     sei->numPayloads = 0;
@@ -1018,6 +1091,9 @@ static const AVOption options[] = {
     { "dolbyvision", "Enable Dolby Vision RPU coding", OFFSET(dovi.enable), AV_OPT_TYPE_BOOL, {.i64 = FF_DOVI_AUTOMATIC }, -1, 1, VE, .unit = "dovi" },
     {   "auto", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_DOVI_AUTOMATIC}, .flags = VE, .unit = "dovi" },
 #endif
+    { "http_control_enable", "Enable HTTP-based encoder control interface", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "http_control_port", "Port for HTTP control interface", OFFSET(http_control_port), AV_OPT_TYPE_INT, { .i64 = 8080 }, 1024, 65535, VE },
+    { "http_enable_encoder_restart", "Enable encoder restart for instant bitrate change (non-graceful, 1-2 frame drop)", OFFSET(http_enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { NULL }
 };
 
