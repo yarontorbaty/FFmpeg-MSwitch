@@ -44,10 +44,6 @@ if [ ! -f /tmp/big_buck_bunny_720p.mp4 ]; then
          -o /tmp/big_buck_bunny_720p.mp4
 fi
 
-echo "Starting VLC player (SRT caller)..."
-open -a VLC "srt://127.0.0.1:${SRT_PORT_EXTERNAL}?mode=caller&latency=3000" &
-sleep 3
-
 echo "Starting Docker container with visual overlay..."
 docker run -d --name $CONTAINER_NAME \
   --cap-add=NET_ADMIN \
@@ -95,7 +91,13 @@ wait \$TX_PID \$RX_PID
 "
 
 echo "Container started: $CONTAINER_NAME"
-sleep 8
+sleep 5
+
+echo ""
+echo "Starting VLC player (SRT caller)..."
+echo "VLC will connect to Docker container on localhost:${SRT_PORT_EXTERNAL}"
+open -a VLC "srt://127.0.0.1:${SRT_PORT_EXTERNAL}?mode=caller&latency=3000" &
+sleep 5
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -110,8 +112,7 @@ echo "     • Packet loss percentage"
 echo ""
 
 # Start plotting in a new terminal window
-PLOT_SCRIPT='cd "'$(pwd)'" && python3 plot_hysteresis.py'
-osascript -e "tell application \"Terminal\" to do script \"$PLOT_SCRIPT\"" &
+osascript -e 'tell application "Terminal" to do script "cd '"$(pwd)"' && python3 plot_hysteresis.py"' &
 
 sleep 2
 
