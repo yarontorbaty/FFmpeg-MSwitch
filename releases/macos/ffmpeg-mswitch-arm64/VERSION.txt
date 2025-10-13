@@ -1,0 +1,24 @@
+FFmpeg-MSwitch
+Version: N-121326-g6e6a90a324
+Commit: 4dae270294
+Build Date: 2025-10-06
+Architecture: arm64 (Apple Silicon)
+Platform: macOS 15.0.1
+Optimization: O3 (Release build)
+
+Features:
+- Multi-source failover (mswitchdirect demuxer)
+- H.264 (libx264)
+- HEVC/H.265 (libx265)
+- AV1 (libaom-av1)
+- SRT protocol with improved error handling
+- All standard filters (drawtext, drawbox, overlay, etc.)
+- SRT relay server with clean signal handling
+
+Improvements in this build:
+- Optimized for performance (O3 compilation)
+- Reduced logging verbosity (cleaner output)
+- SRT relay responds to Ctrl+C
+- Debug symbols stripped for smaller size
+
+For documentation, see README.md

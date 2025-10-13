@@ -62,7 +62,7 @@ ffmpeg -re -i input.mp4 \
   -g 60 \
   -http_control_enable 1 \
   -http_control_port 8080 \
-  -http_enable_encoder_restart 1 \
+  -enable_encoder_restart 1 \
   -f mpegts "srt://127.0.0.1:9999?mode=listener"
 ```
 
@@ -83,13 +83,14 @@ curl -X POST http://localhost:8080 \
 
 | Mode | Bitrate Change Speed | Disruption | Smoothness |
 |------|---------------------|------------|------------|
-| **Graceful (VBV reconfig)** | 5-10 seconds | None | Very smooth |
 | **Encoder Restart** | **Instant** | 1-2 frames | Smooth @ 24fps |
+| **Frame Skipping** | **Instant** | None | Choppy (reduced FPS) |
 
 ### **When to Use Each Mode**
 
-- **Graceful Mode** (default): For gradual bitrate adjustments, broadcast applications
-- **Restart Mode** (`-http_enable_encoder_restart 1`): For instant response to network changes, adaptive streaming
+- **Encoder Restart** (`-enable_encoder_restart 1`): Instant bitrate change, maintains quality, brief glitch
+- **Frame Skipping** (`-enable_frame_skip 1`): Instant bitrate reduction via FPS drop, no glitch but choppy
+- **Hybrid** (both enabled + `-min_fps_before_restart 15`): Use frame skip first, restart if FPS < threshold
 
 ---
 
@@ -97,16 +98,18 @@ curl -X POST http://localhost:8080 \
 
 ### **Why Encoder Restart Works**
 
-1. **x264/x265 State**: Encoder maintains internal state (VBV buffer, reference frames, lookahead)
-2. **Reconfig Limitations**: `x264_encoder_reconfig()` has constraints:
-   - Cannot change rate control mode
-   - VBV changes are smoothed over time
-   - Internal lookahead buffers delay response
+**Problem with `x264_encoder_reconfig()`**:
+- ❌ Cannot reliably change bitrate at runtime
+- ❌ VBV buffer smooths changes over 5-10 seconds  
+- ❌ Internal state prevents instant adaptation
+- ❌ Tested extensively - does NOT work for instant changes
 
-3. **Restart Solution**:
-   - **Fresh Start**: New encoder has no historical buffer state
-   - **Immediate Effect**: First frame after restart uses new bitrate
-   - **Clean HRD**: New VPS/SPS/PPS with updated parameters
+**Encoder Restart Solution**:
+- ✅ Close encoder → update params → reopen encoder
+- ✅ Fresh state, no historical averaging
+- ✅ Immediate bitrate effect (first frame uses new bitrate)
+- ✅ Only 1-2 frame gap during restart (~40-80ms)
+- ✅ Tested and verified to work perfectly
 
 ### **Minimizing Disruption**
 

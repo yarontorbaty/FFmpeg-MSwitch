@@ -1,0 +1,114 @@
+#!/bin/bash
+#
+# MSwitch SRT Helper - Automatically manages SRT relays for mswitchdirect
+#
+# Usage: mswitch_srt <srt_source1> <srt_source2> [srt_source3] -- [ffmpeg_args...]
+#
+# Example:
+#   mswitch_srt \
+#     srt://server1:9000 \
+#     srt://server2:9000 \
+#     srt://server3:9000 \
+#     -- \
+#     -msw_port 8099 -msw_auto_failover 1 \
+#     -i dummy -c:v libx264 -f mpegts udp://output:5000
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FFMPEG_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+RELAY_BIN="$SCRIPT_DIR/srt_relay"
+FFMPEG_BIN="$FFMPEG_DIR/ffmpeg"
+
+# Check if relay is built
+if [ ! -f "$RELAY_BIN" ]; then
+    echo "Error: SRT relay not found. Building..."
+    cd "$SCRIPT_DIR" && make || exit 1
+fi
+
+# Parse SRT sources (before --)
+SRT_SOURCES=()
+FFMPEG_ARGS=()
+PARSING_SOURCES=1
+
+for arg in "$@"; do
+    if [ "$arg" = "--" ]; then
+        PARSING_SOURCES=0
+        continue
+    fi
+    
+    if [ $PARSING_SOURCES -eq 1 ]; then
+        SRT_SOURCES+=("$arg")
+    else
+        FFMPEG_ARGS+=("$arg")
+    fi
+done
+
+NUM_SOURCES=${#SRT_SOURCES[@]}
+
+if [ $NUM_SOURCES -eq 0 ]; then
+    echo "Usage: $0 <srt_source1> <srt_source2> [srt_source3] -- [ffmpeg_args...]"
+    echo ""
+    echo "Example:"
+    echo "  $0 srt://server1:9000 srt://server2:9000 srt://server3:9000 -- \\"
+    echo "    -msw_port 8099 -msw_auto_failover 1 \\"
+    echo "    -i dummy -c:v libx264 -f mpegts udp://output:5000"
+    exit 1
+fi
+
+echo "=== MSwitch SRT Helper ==="
+echo "Sources: $NUM_SOURCES"
+echo ""
+
+# Start relays
+RELAY_PIDS=()
+RELAY_OUTPUTS=()
+BASE_INPUT_PORT=19000
+BASE_OUTPUT_PORT=19100
+
+for i in $(seq 0 $((NUM_SOURCES-1))); do
+    INPUT_PORT=$((BASE_INPUT_PORT + i))
+    OUTPUT_PORT=$((BASE_OUTPUT_PORT + i))
+    
+    "$RELAY_BIN" $INPUT_PORT $OUTPUT_PORT > "/tmp/srt_relay_$i.log" 2>&1 &
+    RELAY_PID=$!
+    RELAY_PIDS+=($RELAY_PID)
+    RELAY_OUTPUTS+=("srt://127.0.0.1:$OUTPUT_PORT?mode=caller")
+    
+    echo "Relay $i: PID $RELAY_PID (input:$INPUT_PORT → output:$OUTPUT_PORT)"
+done
+
+echo ""
+echo "Waiting 1 second for relays to start..."
+sleep 1
+
+# Build mswitchdirect sources string
+MSWITCH_SOURCES=$(IFS=,; echo "${RELAY_OUTPUTS[*]}")
+
+echo ""
+echo "Starting FFmpeg with mswitchdirect..."
+echo "Sources: $MSWITCH_SOURCES"
+echo ""
+echo "NOTE: Your sources should publish to:"
+for i in $(seq 0 $((NUM_SOURCES-1))); do
+    INPUT_PORT=$((BASE_INPUT_PORT + i))
+    echo "  Source $i: srt://127.0.0.1:$INPUT_PORT"
+done
+echo ""
+
+# Cleanup function
+cleanup() {
+    echo ""
+    echo "Stopping relays..."
+    for pid in "${RELAY_PIDS[@]}"; do
+        kill $pid 2>/dev/null
+    done
+    wait 2>/dev/null
+    echo "Done"
+    exit 0
+}
+
+trap cleanup INT TERM
+
+# Run FFmpeg
+"$FFMPEG_BIN" -f mswitchdirect -msw_sources "$MSWITCH_SOURCES" "${FFMPEG_ARGS[@]}"
+
+cleanup

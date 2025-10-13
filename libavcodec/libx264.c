@@ -142,6 +142,7 @@ typedef struct X264Context {
     // Rate control options (work with HTTP OR SRT)
     int enable_encoder_restart;  // Enable encoder restart for instant bitrate change (non-graceful)
     int enable_dynamic_gop;      // Enable dynamic GOP adjustment based on bitrate
+    int min_fps_before_restart;  // Minimum FPS before triggering encoder restart (default 15)
     int64_t original_fps_num;    // Original FPS numerator (for hybrid bitrate calc)
     int64_t original_fps_den;    // Original FPS denominator
     int64_t current_fps_num;     // Current FPS numerator for dynamic adjustment
@@ -824,136 +825,98 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                        }
 
                        if (should_apply_change && bitrate_diff > x4->last_applied_bitrate / 100) {
-                    int target_kbps = target_bitrate / 1000;
-                    
-                    // CRITICAL: Prepare a FULL param struct for reconfig (required by x264)
-                    // Copy current params, then modify only the RC/GOP fields we want to change
-                    x264_param_t reconfig_params;
-                    memcpy(&reconfig_params, &x4->params, sizeof(x264_param_t));
-                    
-                    // 1) Set rate control parameters (CBR/VBR for live streaming)
-                    reconfig_params.rc.i_rc_method = X264_RC_ABR;  // Must stay in same mode
-                    reconfig_params.rc.i_bitrate = target_kbps;
-                    reconfig_params.rc.i_vbv_max_bitrate = target_kbps;  // Match target for CBR-like
-                    
-                    // DYNAMIC VBV BUFFER: Smaller on downshift (faster), larger on upshift (smoother)
-                    int vbv_buffer_size;
-                    if (target_bitrate < x4->last_applied_bitrate) {
-                        // DOWNSHIFT: Exponentially smaller buffer for faster response
-                        // Start with 0.1s buffer, scale down as ratio decreases
-                        double ratio = (double)target_bitrate / (double)x4->last_applied_bitrate;
-                        // ratio = 0.5 (50% drop) → buffer = 0.05s (very aggressive)
-                        // ratio = 0.8 (20% drop) → buffer = 0.08s (moderate)
-                        vbv_buffer_size = (int)(target_kbps * ratio * 0.1);  // Exponential decrease
-                        if (vbv_buffer_size < target_kbps / 100) vbv_buffer_size = target_kbps / 100;  // Min 10ms
-                        av_log(ctx, AV_LOG_INFO, "[HTTP Control] DOWNSHIFT: VBV buffer = %d kbps (%.1f ms) for fast response\n",
-                               vbv_buffer_size, (vbv_buffer_size * 1000.0) / target_kbps);
-                    } else {
-                        // UPSHIFT: Exponentially larger buffer for smooth quality
-                        // Start with 0.5s buffer, scale up as ratio increases
-                        double ratio = (double)target_bitrate / (double)x4->last_applied_bitrate;
-                        // ratio = 2.0 (2x increase) → buffer = 1.0s (very smooth)
-                        // ratio = 1.2 (20% increase) → buffer = 0.6s (moderate)
-                        vbv_buffer_size = (int)(target_kbps * (ratio - 1.0) * 0.5);
-                        if (vbv_buffer_size < target_kbps / 2) vbv_buffer_size = target_kbps / 2;  // Min 0.5s
-                        if (vbv_buffer_size > target_kbps * 2) vbv_buffer_size = target_kbps * 2;  // Max 2s
-                        av_log(ctx, AV_LOG_INFO, "[HTTP Control] UPSHIFT: VBV buffer = %d kbps (%.1f ms) for smooth quality\n",
-                               vbv_buffer_size, (vbv_buffer_size * 1000.0) / target_kbps);
-                    }
-                    reconfig_params.rc.i_vbv_buffer_size = vbv_buffer_size;
-                    
-                    // 2) Downshift tweaks: Shorter GOP + no B-frames for aggressive mode
-                    if (x4->aggressive_mode) {
-                        reconfig_params.i_keyint_max = x4->original_fps_num * 2;  // 2× fps (e.g., 48 @ 24fps)
-                        reconfig_params.i_bframe = 0;  // Disable B-frames for lower latency
-                        av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] DOWNSHIFT: Target=%d kbps, GOP=%lld, B-frames=0\n", 
-                               target_kbps, x4->original_fps_num * 2);
-                    } else {
-                        reconfig_params.i_keyint_max = x4->original_gop_size;
-                        // Keep original B-frame settings
-                    }
-                    
-                    // 3) AQ settings (keep AQ on for detail preservation at lower rates)
-                    // x264 has AQ enabled by default, so we don't need to change it
-                    
-                    // 4) CRITICAL: Force IDR at switchover for clean HRD/VBV state
-                    if (force_idr) {
-                        reconfig_params.b_intra_refresh = 0;
-                        x4->force_next_idr = 1;
-                        av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ FORCING IDR for clean HRD/VBV switchover\n");
-                    }
-                    
-                    av_log(ctx, AV_LOG_INFO, 
-                           "[SRT Rate Control] RECONFIG: bitrate=%d kbps, vbv_max=%d kbps, vbv_buf=%d kbps (%.1f ms)%s\n",
-                           target_kbps, target_kbps, vbv_buffer_size,
-                           (vbv_buffer_size * 1000.0) / target_kbps,
-                           force_idr ? " [+IDR]" : "");
-                    
-                    // OPTIONAL HYBRID: Frame skipping for instant bitrate control
-                    if (x4->srt_enable_frame_skip) {
-                        int64_t current_bitrate = x4->last_applied_bitrate;
-                        if (current_bitrate == 0) current_bitrate = ctx->bit_rate;
-                        
-                        if (target_bitrate < current_bitrate && x4->original_fps_num > 0) {
-                            // Calculate target FPS: new_fps = original_fps * (target_bitrate / current_bitrate)
-                            int calculated_fps = (int)((x4->original_fps_num * target_bitrate) / current_bitrate);
-                            if (calculated_fps < 1) calculated_fps = 1;
-                            if (calculated_fps > x4->original_fps_num) calculated_fps = x4->original_fps_num;
-                            
-                            if (calculated_fps < x4->original_fps_num) {
-                                // Set up frame skipping
-                                int skip_interval = (int)(x4->original_fps_num / calculated_fps);
-                                if (skip_interval < 1) skip_interval = 1;
-                                
-                                x4->frame_skip_interval = skip_interval;
-                                x4->frame_skip_counter = 0;
-                                x4->current_fps_num = calculated_fps;
-                                
-                                av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ HYBRID FRAME SKIPPING ⚡\n");
-                                av_log(ctx, AV_LOG_INFO, "[SRT Rate Control]   Current: %.2f Mbps @ %lld fps\n", 
-                                       current_bitrate / 1000000.0, x4->original_fps_num);
-                                av_log(ctx, AV_LOG_INFO, "[SRT Rate Control]   Target:  %.2f Mbps → %d fps (keep 1 of every %d frames)\n", 
-                                       target_bitrate / 1000000.0, calculated_fps, skip_interval);
-                            }
-                        } else if (target_bitrate >= current_bitrate * 1.2 && x4->frame_skip_interval > 0) {
-                            // Disable frame skipping when bandwidth recovers
-                            x4->frame_skip_interval = 0;
-                            x4->current_fps_num = x4->original_fps_num;
-                            av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] Frame skipping DISABLED (bandwidth recovered to %lld fps)\n",
-                                   x4->original_fps_num);
-                        }
-                    }
-                    
-                    // 5) Call x264_encoder_reconfig with the FULL param struct
-                    int reconfig_ret = x264_encoder_reconfig(x4->enc, &reconfig_params);
-                    
-                    if (reconfig_ret == 0) {
-                        av_log(ctx, AV_LOG_INFO,
-                               "[SRT Rate Control] ✓ RECONFIG SUCCESS: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms → %lld → %lld bps (%.2f Mbps)%s\n",
-                               stats.bandwidth_mbps, stats.packet_loss_rate, stats.rtt_ms,
-                               (long long)x4->last_applied_bitrate, (long long)target_bitrate,
-                               target_bitrate / 1000000.0, force_idr ? " [+IDR]" : "");
-                        
-                        // 6) Update our cached params to match what was applied
-                        memcpy(&x4->params, &reconfig_params, sizeof(x264_param_t));
-                        x4->last_applied_bitrate = target_bitrate;
-                        
-                        // 7) Update AVCodecContext to match (prevents auto-reconfig from reverting)
-                        ctx->bit_rate = target_bitrate;
-                        ctx->rc_max_rate = target_bitrate;
-                        ctx->rc_buffer_size = target_bitrate;  // Match 1s buffer
-                        
-                        // 8) Set skip flag to prevent automatic reconfig from overwriting
-                        x4->http_control_skip_reconfig = 1;
-                        
-                        av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] Params synced: x4->params, ctx updated\n");
-                    } else {
-                        av_log(ctx, AV_LOG_ERROR, "[SRT Rate Control] ✗ RECONFIG FAILED (ret=%d)\n", reconfig_ret);
-                    }
-                }
-            }
-            
-            x4->last_srt_check_time = current_time;
+                           int target_kbps = target_bitrate / 1000;
+                           int64_t current_bitrate = x4->last_applied_bitrate;
+                           if (current_bitrate == 0) current_bitrate = ctx->bit_rate;
+                           
+                           // CHOOSE METHOD: Frame skipping OR encoder restart
+                           int use_encoder_restart = 0;
+                           int use_frame_skip = 0;
+                           
+                           if (x4->enable_encoder_restart && x4->srt_enable_frame_skip) {
+                               // BOTH enabled: Use frame skip if FPS stays above threshold
+                               int calculated_fps = (int)((x4->original_fps_num * target_bitrate) / current_bitrate);
+                               if (calculated_fps < 1) calculated_fps = 1;
+                               if (calculated_fps > x4->original_fps_num) calculated_fps = x4->original_fps_num;
+                               
+                               if (calculated_fps < x4->min_fps_before_restart) {
+                                   use_encoder_restart = 1;
+                                   av_log(ctx, AV_LOG_INFO, "[SRT] FPS=%d < threshold=%d → ENCODER RESTART\n",
+                                          calculated_fps, x4->min_fps_before_restart);
+                               } else {
+                                   use_frame_skip = 1;
+                                   av_log(ctx, AV_LOG_INFO, "[SRT] FPS=%d >= threshold=%d → FRAME SKIP\n",
+                                          calculated_fps, x4->min_fps_before_restart);
+                               }
+                           }
+                           else if (x4->enable_encoder_restart) {
+                               use_encoder_restart = 1;
+                           }
+                           else if (x4->srt_enable_frame_skip) {
+                               use_frame_skip = 1;
+                           }
+                           else {
+                               av_log(ctx, AV_LOG_WARNING, "[SRT] ⚠️ No method enabled! Use -enable_encoder_restart 1 or -enable_frame_skip 1\n");
+                           }
+                           
+                           // APPLY CHOSEN METHOD
+                           if (use_encoder_restart) {
+                               // METHOD 1: ENCODER RESTART - Instant bitrate change
+                               av_log(ctx, AV_LOG_INFO, "[SRT] ═══ ENCODER RESTART ═══\n");
+                               
+                               if (x4->enc) {
+                                   x264_encoder_close(x4->enc);
+                                   x4->enc = NULL;
+                               }
+                               
+                               x4->params.rc.i_bitrate = target_kbps;
+                               x4->params.rc.i_vbv_max_bitrate = target_kbps;
+                               x4->params.rc.i_vbv_buffer_size = target_kbps / 25;  // 40ms buffer
+                               
+                               x4->enc = x264_encoder_open(&x4->params);
+                               if (!x4->enc) {
+                                   av_log(ctx, AV_LOG_ERROR, "[SRT] ✗ RESTART FAILED\n");
+                                   return AVERROR_EXTERNAL;
+                               }
+                               
+                               av_log(ctx, AV_LOG_INFO, "[SRT] ✓ RESTARTED: %.2f → %.2f Mbps\n",
+                                      current_bitrate / 1000000.0, target_bitrate / 1000000.0);
+                               
+                               x4->last_applied_bitrate = target_bitrate;
+                               ctx->bit_rate = target_bitrate;
+                               ctx->rc_max_rate = target_bitrate;
+                               x4->http_control_skip_reconfig = 1;
+                           }
+                           else if (use_frame_skip) {
+                               // METHOD 2: FRAME SKIPPING - Reduce FPS for bitrate control
+                               int calculated_fps = (int)((x4->original_fps_num * target_bitrate) / current_bitrate);
+                               if (calculated_fps < 1) calculated_fps = 1;
+                               if (calculated_fps > x4->original_fps_num) calculated_fps = x4->original_fps_num;
+                               
+                               if (calculated_fps < x4->original_fps_num) {
+                                   int skip_interval = (int)(x4->original_fps_num / calculated_fps);
+                                   if (skip_interval < 1) skip_interval = 1;
+                                   
+                                   x4->frame_skip_interval = skip_interval;
+                                   x4->frame_skip_counter = 0;
+                                   x4->current_fps_num = calculated_fps;
+                                   
+                                   av_log(ctx, AV_LOG_INFO, "[SRT] ⚡ FRAME SKIP: %lld → %d fps (skip %d)\n",
+                                          x4->original_fps_num, calculated_fps, skip_interval);
+                               }
+                               else if (x4->frame_skip_interval > 0) {
+                                   // Restore full FPS
+                                   x4->frame_skip_interval = 0;
+                                   x4->current_fps_num = x4->original_fps_num;
+                                   av_log(ctx, AV_LOG_INFO, "[SRT] ✓ FPS RESTORED: %lld fps\n", x4->original_fps_num);
+                               }
+                               
+                               x4->last_applied_bitrate = target_bitrate;
+                           }
+                       }
+               }
+               
+               x4->last_srt_check_time = current_time;
         }
     }
 
@@ -2198,6 +2161,7 @@ static const AVOption options[] = {
     { "enable_encoder_restart", "Enable encoder restart for instant bitrate changes (non-graceful, 1-2 frame drop)", OFFSET(enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "enable_frame_skip", "Enable frame skipping for instant bitrate reduction (aggressive control)", OFFSET(srt_enable_frame_skip), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "enable_dynamic_gop", "Enable dynamic GOP size adjustment based on bitrate changes", OFFSET(enable_dynamic_gop), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "min_fps_before_restart", "Minimum FPS threshold before triggering encoder restart (when both restart and frame skip enabled)", OFFSET(min_fps_before_restart), AV_OPT_TYPE_INT, { .i64 = 15 }, 1, 120, VE },
     
     // HTTP control interface
     { "http_control_enable", "Enable HTTP-based encoder control interface (REST API for runtime control)", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
