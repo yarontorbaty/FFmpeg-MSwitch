@@ -123,6 +123,7 @@ typedef struct X264Context {
     int srt_rate_control;  // Enable SRT-based rate control
     int srt_enable_frame_skip;  // Enable frame skipping for instant bitrate reduction
     int srt_disable_auto_adjust;  // Disable automatic bandwidth-based adjustment (HTTP-only mode)
+    int srt_enable_encoder_restart;  // Enable encoder restart for SRT-based changes
     char *srt_url;  // SRT URL from output (set via env var)
     int64_t srt_min_bitrate;
     int64_t srt_max_bitrate;
@@ -130,6 +131,13 @@ typedef struct X264Context {
     int64_t last_applied_bitrate;
     int aggressive_mode;  // Switch to CRF mode for aggressive bitrate drops
     int original_gop_size;  // Store original GOP size
+    
+    // Smart hysteresis for bitrate increases
+    int srt_upshift_delay_ms;  // Delay before increasing bitrate (ms)
+    int64_t upshift_pending_start_time;  // When upshift was first detected
+    int64_t upshift_pending_target_bitrate;  // Target bitrate for pending upshift
+    int upshift_health_check_count;  // Number of successful health checks
+    int upshift_health_check_required;  // Number of checks required before upshift
     
     // HTTP-based encoder control
     int http_control_enable;  // Enable HTTP control interface
@@ -714,35 +722,107 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                 if (target_bitrate > x4->srt_max_bitrate)
                     target_bitrate = x4->srt_max_bitrate;
                 
-                       // Update for ANY change (>1% for immediate response)
+                       // SMART HYSTERESIS: Instant downshift, delayed upshift with health check
                        int64_t bitrate_diff = target_bitrate > x4->last_applied_bitrate ?
                            target_bitrate - x4->last_applied_bitrate :
                            x4->last_applied_bitrate - target_bitrate;
 
-                       // ALWAYS force IDR at bitrate switchover for clean HRD/VBV state
-                       // This is CRITICAL for x264_encoder_reconfig() to work properly
-                       int force_idr = 1;  // Always force IDR on ANY bitrate change
+                       int should_apply_change = 0;
+                       int force_idr = 1;  // Always force IDR on bitrate changes
                        
-                       if (target_bitrate < x4->last_applied_bitrate && 
-                           (x4->last_applied_bitrate - target_bitrate) > x4->last_applied_bitrate * 0.3) {
-                           x4->aggressive_mode = 1;
-                           av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] AGGRESSIVE MODE: Large bitrate drop (>30%%) detected\n");
+                       // Determine if this is a DOWNSHIFT or UPSHIFT
+                       int is_downshift = (target_bitrate < x4->last_applied_bitrate);
+                       int is_upshift = (target_bitrate > x4->last_applied_bitrate);
+                       
+                       if (is_downshift) {
+                           // ⚡ INSTANT DOWNSHIFT: Protect against congestion immediately
+                           should_apply_change = 1;
+                           
+                           // Cancel any pending upshift
+                           if (x4->upshift_pending_start_time > 0) {
+                               av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ DOWNSHIFT: Cancelling pending upshift (BW dropped)\n");
+                               x4->upshift_pending_start_time = 0;
+                               x4->upshift_health_check_count = 0;
+                           }
+                           
+                           // Mark aggressive mode for large drops
+                           if ((x4->last_applied_bitrate - target_bitrate) > x4->last_applied_bitrate * 0.3) {
+                               x4->aggressive_mode = 1;
+                               av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ AGGRESSIVE MODE: Large bitrate drop (>30%%) detected\n");
+                           }
+                           
+                           av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ INSTANT DOWNSHIFT: %.2f → %.2f Mbps (protecting against congestion)\n",
+                                  x4->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0);
+                       }
+                       else if (is_upshift) {
+                           // 🕒 DELAYED UPSHIFT with health check
+                           if (x4->srt_upshift_delay_ms == 0) {
+                               // Delay disabled, apply immediately
+                               should_apply_change = 1;
+                               av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⬆ INSTANT UPSHIFT: %.2f → %.2f Mbps (delay disabled)\n",
+                                      x4->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0);
+                           }
+                           else {
+                               // Check if this is a new upshift request or continuation
+                               if (x4->upshift_pending_start_time == 0) {
+                                   // NEW upshift detected, start the clock
+                                   x4->upshift_pending_start_time = current_time;
+                                   x4->upshift_pending_target_bitrate = target_bitrate;
+                                   x4->upshift_health_check_count = 0;
+                                   x4->upshift_health_check_required = (x4->srt_upshift_delay_ms + 500 - 1) / 500;  // One check per 500ms
+                                   
+                                   av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] 🕒 UPSHIFT PENDING: %.2f → %.2f Mbps (waiting %d ms, need %d health checks)\n",
+                                          x4->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0,
+                                          x4->srt_upshift_delay_ms, x4->upshift_health_check_required);
+                               }
+                               else {
+                                   // Existing upshift in progress
+                                   int64_t elapsed_ms = current_time - x4->upshift_pending_start_time;
+                                   
+                                   // HEALTH CHECK: Verify bandwidth is still good
+                                   if (target_bitrate >= x4->upshift_pending_target_bitrate * 0.95) {
+                                       // Bandwidth is stable or better
+                                       x4->upshift_health_check_count++;
+                                       av_log(ctx, AV_LOG_DEBUG, "[SRT Rate Control] ✓ HEALTH CHECK %d/%d: BW stable at %.2f Mbps (elapsed: %lld ms)\n",
+                                              x4->upshift_health_check_count, x4->upshift_health_check_required,
+                                              target_bitrate / 1000000.0, elapsed_ms);
+                                   }
+                                   else {
+                                       // Bandwidth dropped, reset the clock
+                                       av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ✗ HEALTH CHECK FAILED: BW dropped to %.2f Mbps, resetting upshift timer\n",
+                                              target_bitrate / 1000000.0);
+                                       x4->upshift_pending_start_time = current_time;
+                                       x4->upshift_pending_target_bitrate = target_bitrate;
+                                       x4->upshift_health_check_count = 0;
+                                   }
+                                   
+                                   // Check if delay period is over AND health checks passed
+                                   if (elapsed_ms >= x4->srt_upshift_delay_ms && 
+                                       x4->upshift_health_check_count >= x4->upshift_health_check_required) {
+                                       should_apply_change = 1;
+                                       x4->upshift_pending_start_time = 0;  // Reset
+                                       x4->upshift_health_check_count = 0;
+                                       av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ✓ UPSHIFT APPROVED: %.2f → %.2f Mbps (health checks passed)\n",
+                                              x4->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0);
+                                   }
+                               }
+                           }
                        }
                        
-                       // Switch back when bandwidth recovers significantly
+                       // Switch back from aggressive mode when bandwidth recovers
                        if (x4->aggressive_mode && target_bitrate > x4->last_applied_bitrate * 1.5) {
                            x4->aggressive_mode = 0;
-                           av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] NORMAL MODE: Bandwidth recovered\n");
+                           av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] NORMAL MODE: Bandwidth recovered significantly\n");
                        }
 
-                       // Log every check for debugging
+                       // Log periodic checks for debugging
                        if (bitrate_diff > x4->last_applied_bitrate / 10) {  // Log if >10% difference
                            av_log(ctx, AV_LOG_DEBUG, "[SRT Rate Control CHECK] BW=%.2f Mbps → Target: %.2f Mbps (current: %.2f Mbps, diff: %.1f%%)\n",
                                   stats.bandwidth_mbps, target_bitrate / 1000000.0, x4->last_applied_bitrate / 1000000.0,
                                   (bitrate_diff * 100.0) / x4->last_applied_bitrate);
                        }
 
-                       if (bitrate_diff > x4->last_applied_bitrate / 100) {
+                       if (should_apply_change && bitrate_diff > x4->last_applied_bitrate / 100) {
                     int target_kbps = target_bitrate / 1000;
                     
                     // CRITICAL: Prepare a FULL param struct for reconfig (required by x264)
@@ -1586,6 +1666,12 @@ static av_cold int X264_init(AVCodecContext *avctx)
         x4->aggressive_mode = 0;
         x4->original_gop_size = x4->params.i_keyint_max;
         
+        // Initialize smart hysteresis for upshift
+        x4->upshift_pending_start_time = 0;
+        x4->upshift_pending_target_bitrate = 0;
+        x4->upshift_health_check_count = 0;
+        x4->upshift_health_check_required = 0;
+        
         // Initialize FPS tracking for hybrid mode
         x4->original_fps_num = avctx->framerate.num > 0 ? avctx->framerate.num : avctx->time_base.den;
         x4->original_fps_den = avctx->framerate.den > 0 ? avctx->framerate.den : avctx->time_base.num;
@@ -2103,8 +2189,10 @@ static const AVOption options[] = {
     { "srt_rate_control", "Enable SRT network-aware rate control (requires SRT output with enable_stats=1)", OFFSET(srt_rate_control), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "srt_enable_frame_skip", "Enable frame skipping for instant bitrate reduction (optional, for aggressive control)", OFFSET(srt_enable_frame_skip), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "srt_disable_auto_adjust", "Disable automatic SRT bandwidth adjustment (use HTTP control only)", OFFSET(srt_disable_auto_adjust), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "srt_enable_encoder_restart", "Enable encoder restart for SRT rate control (instant bitrate change)", OFFSET(srt_enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "srt_min_bitrate", "Minimum bitrate for SRT rate control (bps)", OFFSET(srt_min_bitrate), AV_OPT_TYPE_INT64, { .i64 = 500000 }, 100000, INT64_MAX, VE },
     { "srt_max_bitrate", "Maximum bitrate for SRT rate control (bps)", OFFSET(srt_max_bitrate), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, 500000, INT64_MAX, VE },
+    { "srt_upshift_delay_ms", "Delay before increasing bitrate when bandwidth improves (ms, 0=instant)", OFFSET(srt_upshift_delay_ms), AV_OPT_TYPE_INT, { .i64 = 5000 }, 0, 60000, VE },
     { "http_control_enable", "Enable HTTP-based encoder control interface", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "http_control_port", "Port for HTTP control interface", OFFSET(http_control_port), AV_OPT_TYPE_INT, { .i64 = 8080 }, 1024, 65535, VE },
     { "http_enable_encoder_restart", "Enable encoder restart for instant bitrate change (non-graceful, 1-2 frame drop)", OFFSET(http_enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
