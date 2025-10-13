@@ -8,10 +8,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#define close closesocket
+typedef int socklen_t;
+#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 
 // Global server instance
 EncoderControlServer g_encoder_control_server = {0};
@@ -22,20 +31,37 @@ int encoder_control_init(int port) {
         return 0;
     }
 
+#ifdef _WIN32
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        av_log(NULL, AV_LOG_ERROR, "[Encoder Control] WSAStartup failed\n");
+        return -1;
+    }
+#endif
+
     pthread_mutex_init(&g_encoder_control_server.global_mutex, NULL);
     g_encoder_control_server.port = port;
     g_encoder_control_server.num_encoders = 0;
 
     // Create socket
     g_encoder_control_server.server_fd = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef _WIN32
+    if (g_encoder_control_server.server_fd == INVALID_SOCKET) {
+#else
     if (g_encoder_control_server.server_fd < 0) {
+#endif
         av_log(NULL, AV_LOG_ERROR, "[Encoder Control] Failed to create socket\n");
         return -1;
     }
 
     // Set socket options
     int opt = 1;
+#ifdef _WIN32
+    setsockopt(g_encoder_control_server.server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
+#else
     setsockopt(g_encoder_control_server.server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
 
     // Bind socket
     struct sockaddr_in address = {0};
@@ -149,6 +175,11 @@ void encoder_control_shutdown(void) {
     }
 
     pthread_mutex_destroy(&g_encoder_control_server.global_mutex);
+    
+#ifdef _WIN32
+    WSACleanup();
+#endif
+    
     av_log(NULL, AV_LOG_INFO, "[Encoder Control] Server shut down\n");
 }
 
@@ -204,7 +235,11 @@ void *encoder_control_server_thread(void *arg) {
 
         // Read HTTP request
         char buffer[4096] = {0};
+#ifdef _WIN32
+        int bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+#else
         int bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+#endif
 
         if (bytes_read > 0) {
             // Find JSON body (after \r\n\r\n)
@@ -229,14 +264,26 @@ void *encoder_control_server_thread(void *arg) {
 
                     // Send HTTP response
                     const char *response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"status\":\"ok\"}\r\n";
+#ifdef _WIN32
+                    send(client_fd, response, strlen(response), 0);
+#else
                     write(client_fd, response, strlen(response));
+#endif
                 } else {
                     const char *response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+#ifdef _WIN32
+                    send(client_fd, response, strlen(response), 0);
+#else
                     write(client_fd, response, strlen(response));
+#endif
                 }
             } else {
                 const char *response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+#ifdef _WIN32
+                send(client_fd, response, strlen(response), 0);
+#else
                 write(client_fd, response, strlen(response));
+#endif
             }
         }
 

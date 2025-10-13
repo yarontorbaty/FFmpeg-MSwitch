@@ -9,6 +9,13 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+typedef SOCKET socket_t;
+#else
+typedef int socket_t;
+#endif
+
 #define ENCODER_CONTROL_MAX_ENCODERS 4
 
 typedef struct EncoderControlCommand {
@@ -31,7 +38,7 @@ typedef struct EncoderControlState {
 
 typedef struct EncoderControlServer {
     int port;
-    int server_fd;
+    socket_t server_fd;
     pthread_t server_thread;
     int running;
     EncoderControlState encoders[ENCODER_CONTROL_MAX_ENCODERS];
