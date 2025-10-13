@@ -47,23 +47,14 @@ fi
 echo "Starting Docker container with visual overlay..."
 docker run -d --name $CONTAINER_NAME \
   --cap-add=NET_ADMIN \
-  -p ${SRT_PORT_EXTERNAL}:${SRT_PORT_EXTERNAL}/udp \
+  --network host \
   -v /tmp/big_buck_bunny_720p.mp4:/input.mp4:ro \
   $IMAGE_NAME \
   bash -c "
 set -e
 
-# Start SRT receiver (forwards to external SRT for VLC)
-echo 'Starting SRT receiver (relay to VLC)...'
-ffmpeg -hide_banner -loglevel error \
-  -i 'srt://127.0.0.1:${SRT_PORT_INTERNAL}?mode=listener&latency=3000' \
-  -c copy \
-  -f mpegts 'srt://0.0.0.0:${SRT_PORT_EXTERNAL}?mode=listener&latency=3000' &
-RX_PID=\$!
-sleep 3
-
-# Start SRT sender with rate control and visual overlay
-echo 'Starting SRT sender with rate control + overlay...'
+# Start SRT sender with rate control and visual overlay (direct to VLC)
+echo 'Starting SRT sender with rate control + overlay (direct to VLC)...'
 ffmpeg -loglevel info \
   -re -stream_loop -1 -i /input.mp4 \
   -vf \"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=40:fontcolor=white:box=1:boxcolor=black@0.8:boxborderw=12:x=30:y=30:text='SRT Smart Hysteresis Demo':enable=1,
@@ -74,20 +65,23 @@ ffmpeg -loglevel info \
   -c:v libx264 \
   -preset ultrafast \
   -tune zerolatency \
-  -b:v 20000k \
+  -b:v 10000k \
   -g 60 \
   -srt_rate_control 1 \
+  -srt_disable_auto_adjust 1 \
   -enable_encoder_restart 1 \
   -srt_min_bitrate 3000000 \
   -srt_max_bitrate 25000000 \
   -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
+  -http_control_enable 1 \
+  -http_control_port 8080 \
   -c:a aac -b:a 128k \
-  -f mpegts 'srt://127.0.0.1:${SRT_PORT_INTERNAL}?latency=3000&enable_stats=1' \
+  -f mpegts 'srt://127.0.0.1:${SRT_PORT_EXTERNAL}?mode=listener&transtype=live&latency=500&rcvbuf=10485760&sndbuf=10485760&enable_stats=1' \
   2>&1 | tee /tmp/demo_sender.log &
 TX_PID=\$!
 
 # Keep container running
-wait \$TX_PID \$RX_PID
+wait \$TX_PID
 "
 
 echo "Container started: $CONTAINER_NAME"
@@ -96,8 +90,15 @@ sleep 5
 echo ""
 echo "Starting VLC player (SRT caller)..."
 echo "VLC will connect to Docker container on localhost:${SRT_PORT_EXTERNAL}"
-open -a VLC "srt://127.0.0.1:${SRT_PORT_EXTERNAL}?mode=caller&latency=3000" &
+open -a VLC "srt://127.0.0.1:${SRT_PORT_EXTERNAL}?mode=caller&transtype=live&latency=500" &
 sleep 5
+
+echo ""
+echo "Testing HTTP control connection..."
+sleep 2
+docker exec $CONTAINER_NAME curl -s -X POST http://localhost:8080/control \
+  -H "Content-Type: application/json" \
+  -d '{"target_bitrate_kbps": 20000, "force_idr": true}' || echo "HTTP control not ready yet"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -121,9 +122,14 @@ echo "════════════════════════�
 echo "PHASE 1: Baseline (30 Mbps, ${PHASE_1_DURATION}s)"
 echo "════════════════════════════════════════════════════════════════"
 
-# Apply initial bandwidth on loopback
-docker exec $CONTAINER_NAME tc qdisc add dev lo root handle 1: htb default 10
-docker exec $CONTAINER_NAME tc class add dev lo parent 1: classid 1:10 htb rate 30mbit ceil 30mbit
+# Apply initial bandwidth on eth0 (external interface)
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 root handle 1: htb default 10
+docker exec $CONTAINER_NAME tc class add dev eth0 parent 1: classid 1:10 htb rate 30mbit ceil 30mbit
+
+# Set initial bitrate via HTTP (20 Mbps)
+docker exec $CONTAINER_NAME curl -s -X POST http://localhost:8080/control \
+  -H "Content-Type: application/json" \
+  -d '{"target_bitrate_kbps": 20000, "force_idr": true}' >/dev/null
 
 sleep ${PHASE_1_DURATION}
 
@@ -133,11 +139,16 @@ echo "PHASE 2: Bandwidth Drop (8 Mbps, ${PHASE_2_DURATION}s)"
 echo "════════════════════════════════════════════════════════════════"
 echo "⚡ INSTANT DOWNSHIFT should occur..."
 
-# Drop to 8 Mbps on loopback
-docker exec $CONTAINER_NAME tc qdisc del dev lo root 2>/dev/null || true
-docker exec $CONTAINER_NAME tc qdisc add dev lo root handle 1: htb default 10
-docker exec $CONTAINER_NAME tc class add dev lo parent 1: classid 1:10 htb rate 8mbit ceil 8mbit
-docker exec $CONTAINER_NAME tc qdisc add dev lo parent 1:10 handle 10: netem loss 0.5%
+# Drop to 8 Mbps on eth0
+docker exec $CONTAINER_NAME tc qdisc del dev eth0 root 2>/dev/null || true
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 root handle 1: htb default 10
+docker exec $CONTAINER_NAME tc class add dev eth0 parent 1: classid 1:10 htb rate 8mbit ceil 8mbit
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 parent 1:10 handle 10: netem loss 0.5%
+
+# Trigger bitrate drop via HTTP (6 Mbps)
+docker exec $CONTAINER_NAME curl -s -X POST http://localhost:8080/control \
+  -H "Content-Type: application/json" \
+  -d '{"target_bitrate_kbps": 6000, "force_idr": true}' >/dev/null
 
 sleep ${PHASE_2_DURATION}
 
@@ -147,11 +158,17 @@ echo "PHASE 3: Bandwidth Recovery (15 Mbps, ${PHASE_3_DURATION}s)"
 echo "════════════════════════════════════════════════════════════════"
 echo "🕒 DELAYED UPSHIFT with health checks..."
 
-# Increase to 15 Mbps on loopback
-docker exec $CONTAINER_NAME tc qdisc del dev lo root 2>/dev/null || true
-docker exec $CONTAINER_NAME tc qdisc add dev lo root handle 1: htb default 10
-docker exec $CONTAINER_NAME tc class add dev lo parent 1: classid 1:10 htb rate 15mbit ceil 15mbit
-docker exec $CONTAINER_NAME tc qdisc add dev lo parent 1:10 handle 10: netem loss 0.2%
+# Increase to 15 Mbps on eth0
+docker exec $CONTAINER_NAME tc qdisc del dev eth0 root 2>/dev/null || true
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 root handle 1: htb default 10
+docker exec $CONTAINER_NAME tc class add dev eth0 parent 1: classid 1:10 htb rate 15mbit ceil 15mbit
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 parent 1:10 handle 10: netem loss 0.2%
+
+# Trigger delayed upshift via HTTP (12 Mbps)
+sleep 3  # Wait 3 seconds before upshift
+docker exec $CONTAINER_NAME curl -s -X POST http://localhost:8080/control \
+  -H "Content-Type: application/json" \
+  -d '{"target_bitrate_kbps": 12000, "force_idr": true}' >/dev/null
 
 sleep ${PHASE_3_DURATION}
 
@@ -162,10 +179,15 @@ echo "════════════════════════�
 echo "✗ Upshift should be CANCELLED..."
 
 # Drop to 6 Mbps to trigger cancellation
-docker exec $CONTAINER_NAME tc qdisc del dev lo root 2>/dev/null || true
-docker exec $CONTAINER_NAME tc qdisc add dev lo root handle 1: htb default 10
-docker exec $CONTAINER_NAME tc class add dev lo parent 1: classid 1:10 htb rate 6mbit ceil 6mbit
-docker exec $CONTAINER_NAME tc qdisc add dev lo parent 1:10 handle 10: netem loss 1.0%
+docker exec $CONTAINER_NAME tc qdisc del dev eth0 root 2>/dev/null || true
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 root handle 1: htb default 10
+docker exec $CONTAINER_NAME tc class add dev eth0 parent 1: classid 1:10 htb rate 6mbit ceil 6mbit
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 parent 1:10 handle 10: netem loss 1.0%
+
+# Cancel upshift via HTTP (keep at 6 Mbps)
+docker exec $CONTAINER_NAME curl -s -X POST http://localhost:8080/control \
+  -H "Content-Type: application/json" \
+  -d '{"target_bitrate_kbps": 6000, "force_idr": true}' >/dev/null
 
 sleep ${PHASE_4_DURATION}
 

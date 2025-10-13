@@ -51,11 +51,24 @@ def extract_actual_bitrate(line):
     return None
 
 def extract_target_bitrate(line):
-    """Extract target bitrate from SRT Rate Control logs"""
+    """Extract target bitrate from SRT Rate Control logs or HTTP control logs"""
     # Look for "→ X.XX Mbps" or "DOWNSHIFT: X.XX → Y.YY Mbps"
     match = re.search(r'→\s*([0-9.]+)\s*Mbps', line)
     if match:
         return float(match.group(1))
+    
+    # Look for HTTP control logs: "Target bitrate: XXXX kbps"
+    if '[HTTP Control]' in line and 'Target bitrate:' in line:
+        match = re.search(r'Target bitrate:\s*(\d+)\s*kbps', line)
+        if match:
+            return float(match.group(1)) / 1000.0  # Convert to Mbps
+    
+    # Look for HTTP control logs: "HTTP Control] Target bitrate: XXXX kbps"
+    if 'HTTP Control' in line and 'Target bitrate:' in line:
+        match = re.search(r'Target bitrate:\s*(\d+)\s*kbps', line)
+        if match:
+            return float(match.group(1)) / 1000.0  # Convert to Mbps
+    
     return None
 
 def extract_loss_percentage(line):
