@@ -98,6 +98,15 @@ typedef struct libx265Context {
     
     // Rate control options (work with HTTP OR SRT)
     int enable_encoder_restart;
+    int enable_frame_skip;
+    int min_fps_before_restart;
+    
+    // Frame skip tracking
+    int64_t original_fps_num;
+    int64_t original_fps_den;
+    int64_t current_fps_num;
+    int frame_skip_counter;
+    int frame_skip_interval;
 } libx265Context;
 
 static int is_keyframe(NalUnitType naltype)
@@ -1093,6 +1102,8 @@ static const AVOption options[] = {
 #endif
     // Dynamic rate control options (work with SRT OR HTTP)
     { "enable_encoder_restart", "Enable encoder restart for instant bitrate changes (non-graceful, 1-2 frame drop)", OFFSET(enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "enable_frame_skip", "Enable frame skipping for instant bitrate reduction (aggressive control)", OFFSET(enable_frame_skip), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "min_fps_before_restart", "Minimum FPS threshold before triggering encoder restart (when both restart and frame skip enabled)", OFFSET(min_fps_before_restart), AV_OPT_TYPE_INT, { .i64 = 15 }, 1, 120, VE },
     
     // HTTP control interface
     { "http_control_enable", "Enable HTTP-based encoder control interface (REST API for runtime control)", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
