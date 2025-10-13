@@ -48,21 +48,28 @@ docker run -d --name $CONTAINER_NAME \
   -p ${HTTP_PORT}:${HTTP_PORT}/tcp \
   -v /tmp/big_buck_bunny_720p.mp4:/input.mp4:ro \
   $IMAGE_NAME \
-  ffmpeg -loglevel info \
-    -re -stream_loop -1 -i /input.mp4 \
-    -c:v libx264 \
-    -preset ultrafast \
-    -tune zerolatency \
-    -b:v 20000k \
-    -g 60 \
-    -srt_rate_control 1 \
-    -enable_encoder_restart 1 \
-    -srt_min_bitrate 3000000 \
-    -srt_max_bitrate 25000000 \
-    -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
-    -http_control_enable 1 \
-    -http_control_port ${HTTP_PORT} \
-    -f mpegts "srt://0.0.0.0:${SRT_PORT}?mode=listener&latency=3000&streamid=#!::r=test,m=publish,enable_stats=1&connect_timeout=5000&tlpktdrop=1"
+  bash -c "
+    # Start FFmpeg in background
+    ffmpeg -loglevel info \
+      -re -stream_loop -1 -i /input.mp4 \
+      -c:v libx264 \
+      -preset ultrafast \
+      -tune zerolatency \
+      -b:v 20000k \
+      -g 60 \
+      -srt_rate_control 1 \
+      -enable_encoder_restart 1 \
+      -srt_min_bitrate 3000000 \
+      -srt_max_bitrate 25000000 \
+      -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
+      -http_control_enable 1 \
+      -http_control_port ${HTTP_PORT} \
+      -f mpegts 'srt://0.0.0.0:${SRT_PORT}?mode=listener&latency=3000&streamid=#!::r=test,m=publish,enable_stats=1&connect_timeout=5000&tlpktdrop=1' &
+    FFMPEG_PID=\\\$!
+    
+    # Keep container running
+    wait \\\$FFMPEG_PID
+  "
 
 echo "Container started: $CONTAINER_NAME"
 echo "Waiting for encoder initialization..."
