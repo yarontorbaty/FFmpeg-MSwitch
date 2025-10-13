@@ -57,7 +57,7 @@ echo ""
   -b:v 20000k \
   -g 60 \
   -srt_rate_control 1 \
-  -srt_enable_encoder_restart 1 \
+  -enable_encoder_restart 1 \
   -srt_min_bitrate ${SRT_MIN_BITRATE} \
   -srt_max_bitrate ${SRT_MAX_BITRATE} \
   -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \

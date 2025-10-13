@@ -40,12 +40,6 @@ if [ ! -f /tmp/big_buck_bunny_720p.mp4 ]; then
          -o /tmp/big_buck_bunny_720p.mp4
 fi
 
-# Start VLC in background
-echo ""
-echo "Starting VLC player..."
-open -a VLC "srt://127.0.0.1:${SRT_PORT}?mode=caller&latency=3000" &
-sleep 5
-
 echo ""
 echo "Starting Docker container with SRT + Smart Hysteresis..."
 docker run -d --name $CONTAINER_NAME \
@@ -62,7 +56,7 @@ docker run -d --name $CONTAINER_NAME \
     -b:v 20000k \
     -g 60 \
     -srt_rate_control 1 \
-    -srt_enable_encoder_restart 1 \
+    -enable_encoder_restart 1 \
     -srt_min_bitrate 3000000 \
     -srt_max_bitrate 25000000 \
     -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
@@ -72,7 +66,12 @@ docker run -d --name $CONTAINER_NAME \
 
 echo "Container started: $CONTAINER_NAME"
 echo "Waiting for encoder initialization..."
-sleep 10
+sleep 5
+
+echo ""
+echo "Starting VLC player..."
+open -a VLC "srt://127.0.0.1:${SRT_PORT}?mode=caller&latency=3000" &
+sleep 3
 
 echo ""
 echo "========================================"
@@ -132,9 +131,11 @@ echo "🕒 Improving bandwidth gradually..."
 echo "Expected: Delayed upshift with health checks"
 echo ""
 
-# Increase to 15 Mbps
-docker exec $CONTAINER_NAME tc qdisc change dev eth0 root handle 1: htb default 10
-docker exec $CONTAINER_NAME tc class change dev eth0 parent 1: classid 1:10 htb rate 15mbit ceil 15mbit
+# Increase to 15 Mbps - delete and recreate qdisc
+docker exec $CONTAINER_NAME tc qdisc del dev eth0 root 2>/dev/null || true
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 root handle 1: htb default 10
+docker exec $CONTAINER_NAME tc class add dev eth0 parent 1: classid 1:10 htb rate 15mbit ceil 15mbit
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 parent 1:10 handle 10: netem loss 0.2%
 
 echo "Network improved to 15 Mbps"
 echo ""
@@ -176,9 +177,11 @@ echo "Dropping bandwidth DURING upshift delay..."
 echo "Expected: Upshift timer should RESET"
 echo ""
 
-# Drop to 6 Mbps to trigger cancellation
-docker exec $CONTAINER_NAME tc qdisc change dev eth0 root handle 1: htb default 10
-docker exec $CONTAINER_NAME tc class change dev eth0 parent 1: classid 1:10 htb rate 6mbit ceil 6mbit
+# Drop to 6 Mbps to trigger cancellation - delete and recreate
+docker exec $CONTAINER_NAME tc qdisc del dev eth0 root 2>/dev/null || true
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 root handle 1: htb default 10
+docker exec $CONTAINER_NAME tc class add dev eth0 parent 1: classid 1:10 htb rate 6mbit ceil 6mbit
+docker exec $CONTAINER_NAME tc qdisc add dev eth0 parent 1:10 handle 10: netem loss 1.0%
 
 echo "Network dropped to 6 Mbps (simulating fluctuation)"
 sleep 2
