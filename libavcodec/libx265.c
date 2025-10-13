@@ -735,9 +735,8 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                    cmd.target_bitrate_kbps, cmd.force_idr);
             
             if (cmd.target_bitrate_kbps > 0 && ctx->enable_encoder_restart) {
-                // NON-GRACEFUL MODE: Close and reopen encoder
-                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] ═══ ENCODER RESTART MODE ═══\n");
-                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Closing current encoder...\n");
+                // ENCODER RESTART: Close and reopen for instant bitrate change
+                av_log(avctx, AV_LOG_INFO, "[libx265] ═══ ENCODER RESTART ═══\n");
                 
                 if (ctx->encoder) {
                     ctx->api->encoder_close(ctx->encoder);
@@ -747,30 +746,29 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                 // Update bitrate parameters
                 ctx->params->rc.bitrate = cmd.target_bitrate_kbps;
                 ctx->params->rc.vbvMaxBitrate = cmd.target_bitrate_kbps;
-                // VBV buffer: ~40ms for fast response
-                ctx->params->rc.vbvBufferSize = cmd.target_bitrate_kbps * 40 / 1000;
+                ctx->params->rc.vbvBufferSize = cmd.target_bitrate_kbps / 25;  // 40ms buffer
                 if (ctx->params->rc.vbvBufferSize < cmd.target_bitrate_kbps / 100)
                     ctx->params->rc.vbvBufferSize = cmd.target_bitrate_kbps / 100;  // Min 10ms
                 
-                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Reopening encoder: bitrate=%d kbps, vbv_buf=%d kbps\n",
-                       cmd.target_bitrate_kbps, ctx->params->rc.vbvBufferSize);
-                
                 ctx->encoder = ctx->api->encoder_open(ctx->params);
                 if (!ctx->encoder) {
-                    av_log(avctx, AV_LOG_ERROR, "[libx265] [HTTP Control] ✗ ENCODER RESTART FAILED\n");
+                    av_log(avctx, AV_LOG_ERROR, "[libx265] ✗ RESTART FAILED\n");
                     return AVERROR_EXTERNAL;
                 }
                 
-                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] ✓ ✓ ✓ ENCODER RESTARTED ✓ ✓ ✓\n");
-                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] INSTANT bitrate change: %d kbps (non-graceful)\n",
-                       cmd.target_bitrate_kbps);
+                av_log(avctx, AV_LOG_INFO, "[libx265] ✓ RESTARTED: %d kbps\n", cmd.target_bitrate_kbps);
                 
                 // Update context
                 avctx->bit_rate = cmd.target_bitrate_kbps * 1000LL;
-            } else if (cmd.force_idr) {
+            } 
+            else if (cmd.target_bitrate_kbps > 0) {
+                // Encoder restart not enabled
+                av_log(avctx, AV_LOG_WARNING, "[libx265] ⚠️ Bitrate change requested but -enable_encoder_restart not set!\n");
+            }
+            else if (cmd.force_idr) {
                 // Force IDR without restart
                 ctx->forced_idr = 1;
-                av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Forcing IDR frame\n");
+                av_log(avctx, AV_LOG_INFO, "[libx265] Forcing IDR frame\n");
             }
             
             encoder_control_ack_command(ctx);
