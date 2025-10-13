@@ -62,7 +62,7 @@ docker run -d --name $CONTAINER_NAME \
     -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
     -http_control_enable 1 \
     -http_control_port ${HTTP_PORT} \
-    -f mpegts "srt://0.0.0.0:${SRT_PORT}?mode=listener&latency=3000&streamid=#!::r=test,m=publish,enable_stats=1"
+    -f mpegts "srt://0.0.0.0:${SRT_PORT}?mode=listener&latency=3000&streamid=#!::r=test,m=publish,enable_stats=1&connect_timeout=5000&tlpktdrop=1"
 
 echo "Container started: $CONTAINER_NAME"
 echo "Waiting for encoder initialization..."
