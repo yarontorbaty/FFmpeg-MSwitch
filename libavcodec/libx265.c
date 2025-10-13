@@ -95,7 +95,9 @@ typedef struct libx265Context {
     int http_control_enable;
     int http_control_port;
     int http_control_registered;
-    int http_enable_encoder_restart;
+    
+    // Rate control options (work with HTTP OR SRT)
+    int enable_encoder_restart;
 } libx265Context;
 
 static int is_keyframe(NalUnitType naltype)
@@ -732,7 +734,7 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Received command: bitrate=%d kbps, force_idr=%d\n",
                    cmd.target_bitrate_kbps, cmd.force_idr);
             
-            if (cmd.target_bitrate_kbps > 0 && ctx->http_enable_encoder_restart) {
+            if (cmd.target_bitrate_kbps > 0 && ctx->enable_encoder_restart) {
                 // NON-GRACEFUL MODE: Close and reopen encoder
                 av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] ═══ ENCODER RESTART MODE ═══\n");
                 av_log(avctx, AV_LOG_INFO, "[libx265] [HTTP Control] Closing current encoder...\n");
@@ -1091,9 +1093,12 @@ static const AVOption options[] = {
     { "dolbyvision", "Enable Dolby Vision RPU coding", OFFSET(dovi.enable), AV_OPT_TYPE_BOOL, {.i64 = FF_DOVI_AUTOMATIC }, -1, 1, VE, .unit = "dovi" },
     {   "auto", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_DOVI_AUTOMATIC}, .flags = VE, .unit = "dovi" },
 #endif
-    { "http_control_enable", "Enable HTTP-based encoder control interface", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    // Dynamic rate control options (work with SRT OR HTTP)
+    { "enable_encoder_restart", "Enable encoder restart for instant bitrate changes (non-graceful, 1-2 frame drop)", OFFSET(enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    
+    // HTTP control interface
+    { "http_control_enable", "Enable HTTP-based encoder control interface (REST API for runtime control)", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "http_control_port", "Port for HTTP control interface", OFFSET(http_control_port), AV_OPT_TYPE_INT, { .i64 = 8080 }, 1024, 65535, VE },
-    { "http_enable_encoder_restart", "Enable encoder restart for instant bitrate change (non-graceful, 1-2 frame drop)", OFFSET(http_enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { NULL }
 };
 

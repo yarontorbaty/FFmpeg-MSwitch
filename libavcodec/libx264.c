@@ -139,21 +139,22 @@ typedef struct X264Context {
     int upshift_health_check_count;  // Number of successful health checks
     int upshift_health_check_required;  // Number of checks required before upshift
     
+    // Rate control options (work with HTTP OR SRT)
+    int enable_encoder_restart;  // Enable encoder restart for instant bitrate change (non-graceful)
+    int enable_dynamic_gop;      // Enable dynamic GOP adjustment based on bitrate
+    int64_t original_fps_num;    // Original FPS numerator (for hybrid bitrate calc)
+    int64_t original_fps_den;    // Original FPS denominator
+    int64_t current_fps_num;     // Current FPS numerator for dynamic adjustment
+    int64_t current_fps_den;     // Current FPS denominator
+    int frame_skip_counter;      // Counter for frame skipping
+    int frame_skip_interval;     // Skip 1 frame every N frames (0 = no skip)
+    int force_next_idr;          // Flag to force IDR on next frame (for reconfig)
+    
     // HTTP-based encoder control
-    int http_control_enable;  // Enable HTTP control interface
-    int http_control_port;    // HTTP control port
-    int http_control_registered;  // Flag indicating registration status
-    int http_control_skip_reconfig;  // Skip automatic reconfig after HTTP control
-    int http_enable_encoder_restart;  // Enable encoder restart for instant bitrate change
-    int64_t original_fps_num;  // Original FPS numerator (for hybrid bitrate calc)
-    int64_t original_fps_den;  // Original FPS denominator
-    int64_t current_fps_num;   // Current FPS numerator for dynamic adjustment
-    int64_t current_fps_den;   // Current FPS denominator
-    int http_frame_skip_counter;  // Counter for frame skipping
-    int http_frame_skip_interval;  // Skip 1 frame every N frames (0 = no skip)
-    int force_next_idr;  // Flag to force IDR on next frame (for reconfig)
-    int pending_encoder_restart;  // Flag to trigger encoder restart
-    int restart_target_bitrate_kbps;  // Target bitrate for restart
+    int http_control_enable;          // Enable HTTP control interface
+    int http_control_port;            // HTTP control port
+    int http_control_registered;      // Flag indicating registration status
+    int http_control_skip_reconfig;   // Skip automatic reconfig after control commands
     
     int udu_sei;
 
@@ -674,13 +675,13 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
     int64_t wallclock = 0;
     X264Opaque *out_opaque;
 
-    // HTTP Control: Frame skipping for instant FPS reduction
-    if (x4->http_frame_skip_interval > 0 && frame) {
-        x4->http_frame_skip_counter++;
-        if (x4->http_frame_skip_counter % x4->http_frame_skip_interval == 0) {
+    // Frame skipping for instant FPS reduction (works with SRT OR HTTP)
+    if (x4->frame_skip_interval > 0 && frame) {
+        x4->frame_skip_counter++;
+        if (x4->frame_skip_counter % x4->frame_skip_interval == 0) {
             // Skip this frame (drop it)
-            av_log(ctx, AV_LOG_DEBUG, "[HTTP Control] Skipping frame %d (interval=%d)\n",
-                   x4->http_frame_skip_counter, x4->http_frame_skip_interval);
+            av_log(ctx, AV_LOG_DEBUG, "[Rate Control] Skipping frame %d (interval=%d)\n",
+                   x4->frame_skip_counter, x4->frame_skip_interval);
             *got_packet = 0;
             return 0;  // Success, but no packet output
         }
@@ -904,8 +905,8 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                                 int skip_interval = (int)(x4->original_fps_num / calculated_fps);
                                 if (skip_interval < 1) skip_interval = 1;
                                 
-                                x4->http_frame_skip_interval = skip_interval;
-                                x4->http_frame_skip_counter = 0;
+                                x4->frame_skip_interval = skip_interval;
+                                x4->frame_skip_counter = 0;
                                 x4->current_fps_num = calculated_fps;
                                 
                                 av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ HYBRID FRAME SKIPPING ⚡\n");
@@ -914,9 +915,9 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                                 av_log(ctx, AV_LOG_INFO, "[SRT Rate Control]   Target:  %.2f Mbps → %d fps (keep 1 of every %d frames)\n", 
                                        target_bitrate / 1000000.0, calculated_fps, skip_interval);
                             }
-                        } else if (target_bitrate >= current_bitrate * 1.2 && x4->http_frame_skip_interval > 0) {
+                        } else if (target_bitrate >= current_bitrate * 1.2 && x4->frame_skip_interval > 0) {
                             // Disable frame skipping when bandwidth recovers
-                            x4->http_frame_skip_interval = 0;
+                            x4->frame_skip_interval = 0;
                             x4->current_fps_num = x4->original_fps_num;
                             av_log(ctx, AV_LOG_INFO, "[SRT Rate Control] Frame skipping DISABLED (bandwidth recovered to %lld fps)\n",
                                    x4->original_fps_num);
@@ -1061,7 +1062,7 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                        (x4->params.rc.i_vbv_buffer_size * 1000.0) / cmd.target_bitrate_kbps);
                 
                 // ENCODER RESTART MODE: Close and reopen encoder for instant bitrate change
-                if (x4->http_enable_encoder_restart) {
+                if (x4->enable_encoder_restart) {
                     av_log(ctx, AV_LOG_INFO, "[HTTP Control] ═══ ENCODER RESTART MODE ═══\n");
                     av_log(ctx, AV_LOG_INFO, "[HTTP Control] Closing current encoder...\n");
                     
@@ -1677,8 +1678,8 @@ static av_cold int X264_init(AVCodecContext *avctx)
         x4->original_fps_den = avctx->framerate.den > 0 ? avctx->framerate.den : avctx->time_base.num;
         x4->current_fps_num = x4->original_fps_num;
         x4->current_fps_den = x4->original_fps_den;
-        x4->http_frame_skip_interval = 0;
-        x4->http_frame_skip_counter = 0;
+        x4->frame_skip_interval = 0;
+        x4->frame_skip_counter = 0;
         x4->force_next_idr = 0;
         
         // CRITICAL: Set initial bitrate if not already set
@@ -2186,16 +2187,21 @@ static const AVOption options[] = {
     { "udu_sei",      "Use user data unregistered SEI if available",      OFFSET(udu_sei),  AV_OPT_TYPE_BOOL,   { .i64 = 0 }, 0, 1, VE },
     { "x264-params",  "Override the x264 configuration using a :-separated list of key=value parameters", OFFSET(x264_params), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "mb_info",      "Set mb_info data through AVSideData, only useful when used from the API", OFFSET(mb_info), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    // SRT rate control options
     { "srt_rate_control", "Enable SRT network-aware rate control (requires SRT output with enable_stats=1)", OFFSET(srt_rate_control), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
-    { "srt_enable_frame_skip", "Enable frame skipping for instant bitrate reduction (optional, for aggressive control)", OFFSET(srt_enable_frame_skip), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
-    { "srt_disable_auto_adjust", "Disable automatic SRT bandwidth adjustment (use HTTP control only)", OFFSET(srt_disable_auto_adjust), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
-    { "srt_enable_encoder_restart", "Enable encoder restart for SRT rate control (instant bitrate change)", OFFSET(srt_enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "srt_min_bitrate", "Minimum bitrate for SRT rate control (bps)", OFFSET(srt_min_bitrate), AV_OPT_TYPE_INT64, { .i64 = 500000 }, 100000, INT64_MAX, VE },
     { "srt_max_bitrate", "Maximum bitrate for SRT rate control (bps)", OFFSET(srt_max_bitrate), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, 500000, INT64_MAX, VE },
     { "srt_upshift_delay_ms", "Delay before increasing bitrate when bandwidth improves (ms, 0=instant)", OFFSET(srt_upshift_delay_ms), AV_OPT_TYPE_INT, { .i64 = 5000 }, 0, 60000, VE },
-    { "http_control_enable", "Enable HTTP-based encoder control interface", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "srt_disable_auto_adjust", "Disable automatic SRT bandwidth adjustment (use HTTP control only)", OFFSET(srt_disable_auto_adjust), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    
+    // Dynamic rate control options (work with SRT OR HTTP)
+    { "enable_encoder_restart", "Enable encoder restart for instant bitrate changes (non-graceful, 1-2 frame drop)", OFFSET(enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "enable_frame_skip", "Enable frame skipping for instant bitrate reduction (aggressive control)", OFFSET(srt_enable_frame_skip), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "enable_dynamic_gop", "Enable dynamic GOP size adjustment based on bitrate changes", OFFSET(enable_dynamic_gop), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    
+    // HTTP control interface
+    { "http_control_enable", "Enable HTTP-based encoder control interface (REST API for runtime control)", OFFSET(http_control_enable), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "http_control_port", "Port for HTTP control interface", OFFSET(http_control_port), AV_OPT_TYPE_INT, { .i64 = 8080 }, 1024, 65535, VE },
-    { "http_enable_encoder_restart", "Enable encoder restart for instant bitrate change (non-graceful, 1-2 frame drop)", OFFSET(http_enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { NULL },
 };
 
