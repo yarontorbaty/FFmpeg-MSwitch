@@ -800,18 +800,19 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             if (ff_srt_get_last_stats(&stats) == 0) {
                 // 🐦 BUFFER CANARY: Check for instant congestion detection
                 int buffer_canary_triggered = 0;
-                int64_t buffer_warning_threshold = ctx->srt_latency / 2;
-                int64_t buffer_critical_threshold = (ctx->srt_latency * 3) / 4;
+                // Use aggressive thresholds for instant detection (not based on SRT latency)
+                int64_t buffer_warning_threshold = 50;   // Warning at 50ms buffer fill
+                int64_t buffer_critical_threshold = 100; // Critical at 100ms buffer fill
                 
                 if (stats.send_buffer_ms > buffer_critical_threshold) {
                     av_log(avctx, AV_LOG_WARNING, 
-                           "[SRT] 🐦 CANARY CRITICAL: Buffer filling (%lld ms / %d ms latency)! Bandwidth drop detected!\n",
-                           (long long)stats.send_buffer_ms, ctx->srt_latency);
+                           "[SRT] 🐦 CANARY CRITICAL: Buffer filling (%lld ms > %lld ms threshold)! Bandwidth drop detected!\n",
+                           (long long)stats.send_buffer_ms, buffer_critical_threshold);
                     buffer_canary_triggered = 2;
                 } else if (stats.send_buffer_ms > buffer_warning_threshold) {
                     av_log(avctx, AV_LOG_INFO, 
-                           "[SRT] 🐦 CANARY WARNING: Buffer rising (%lld ms / %d ms latency)\n",
-                           (long long)stats.send_buffer_ms, ctx->srt_latency);
+                           "[SRT] 🐦 CANARY WARNING: Buffer rising (%lld ms > %lld ms threshold)\n",
+                           (long long)stats.send_buffer_ms, buffer_warning_threshold);
                     buffer_canary_triggered = 1;
                 }
                 
