@@ -44,6 +44,8 @@ echo ""
 echo "Starting Docker container with SRT + Smart Hysteresis..."
 docker run -d --name $CONTAINER_NAME \
   --cap-add=NET_ADMIN \
+  --cpus="4.0" \
+  --memory="4g" \
   -p ${SRT_PORT}:${SRT_PORT}/udp \
   -p ${HTTP_PORT}:${HTTP_PORT}/tcp \
   -v /tmp/big_buck_bunny_720p.mp4:/input.mp4:ro \
@@ -52,15 +54,16 @@ docker run -d --name $CONTAINER_NAME \
     # Start FFmpeg in background
     ffmpeg -loglevel info \
       -re -stream_loop -1 -i /input.mp4 \
-      -c:v libx264 \
+      -c:v libx265 \
       -preset ultrafast \
       -tune zerolatency \
-      -b:v 20000k \
+      -x265-params 'pools=4:frame-threads=2:no-open-gop=1:rc-lookahead=20' \
+      -b:v 12000k \
       -g 60 \
       -srt_rate_control 1 \
       -enable_encoder_restart 1 \
-      -srt_min_bitrate 3000000 \
-      -srt_max_bitrate 25000000 \
+      -srt_min_bitrate 2000000 \
+      -srt_max_bitrate 18000000 \
       -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
       -http_control_enable 1 \
       -http_control_port ${HTTP_PORT} \

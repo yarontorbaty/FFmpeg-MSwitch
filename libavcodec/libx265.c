@@ -34,6 +34,7 @@
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
+#include "libavutil/time.h"
 #include "avcodec.h"
 #include "codec_internal.h"
 #include "dovi_rpu.h"
@@ -42,6 +43,7 @@
 #include "atsc_a53.h"
 #include "sei.h"
 #include "encoder_control.h"
+#include "libavformat/srt_bandwidth.h"
 
 #if defined(X265_ENABLE_ALPHA) && MAX_LAYERS > 2
 #define FF_X265_MAX_LAYERS MAX_LAYERS
@@ -96,10 +98,30 @@ typedef struct libx265Context {
     int http_control_port;
     int http_control_registered;
     
+    // SRT-aware rate control
+    int srt_rate_control;
+    int srt_disable_auto_adjust;
+    int64_t srt_min_bitrate;
+    int64_t srt_max_bitrate;
+    int srt_latency;
+    int srt_bitrate_change_threshold_percent;
+    int64_t last_srt_check_time;
+    int64_t last_applied_bitrate;
+    int original_gop_size;
+    
+    // Smart hysteresis for bitrate increases
+    int srt_upshift_delay_ms;
+    int64_t upshift_pending_start_time;
+    int64_t upshift_pending_target_bitrate;
+    int upshift_health_check_count;
+    int upshift_health_check_required;
+    
     // Rate control options (work with HTTP OR SRT)
     int enable_encoder_restart;
     int enable_frame_skip;
     int min_fps_before_restart;
+    int64_t last_encoder_restart_time;
+    int restart_pending;
     
     // Frame skip tracking
     int64_t original_fps_num;
@@ -619,6 +641,36 @@ FF_ENABLE_DEPRECATION_WARNINGS
         memset(avctx->extradata + avctx->extradata_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
     }
 
+    // Initialize SRT rate control
+    if (ctx->srt_rate_control) {
+        ctx->last_srt_check_time = 0;
+        ctx->last_applied_bitrate = avctx->bit_rate > 0 ? avctx->bit_rate : ctx->srt_max_bitrate;
+        ctx->original_gop_size = ctx->params->keyframeMax;
+        ctx->last_encoder_restart_time = 0;
+        ctx->restart_pending = 0;
+        
+        // Initialize smart hysteresis for upshift
+        ctx->upshift_pending_start_time = 0;
+        ctx->upshift_pending_target_bitrate = 0;
+        ctx->upshift_health_check_count = 0;
+        ctx->upshift_health_check_required = 0;
+        
+        // Initialize FPS tracking for hybrid mode
+        ctx->original_fps_num = avctx->framerate.num > 0 ? avctx->framerate.num : avctx->time_base.den;
+        ctx->original_fps_den = avctx->framerate.den > 0 ? avctx->framerate.den : avctx->time_base.num;
+        ctx->current_fps_num = ctx->original_fps_num;
+        
+        av_log(avctx, AV_LOG_INFO, "[libx265] SRT Rate Control ENABLED\n");
+        av_log(avctx, AV_LOG_INFO, "   Bitrate range: %.2f - %.2f Mbps\n",
+               ctx->srt_min_bitrate / 1000000.0, ctx->srt_max_bitrate / 1000000.0);
+        av_log(avctx, AV_LOG_INFO, "   Change threshold: %d%%\n", ctx->srt_bitrate_change_threshold_percent);
+        av_log(avctx, AV_LOG_INFO, "   Upshift delay: %d ms\n", ctx->srt_upshift_delay_ms);
+        av_log(avctx, AV_LOG_INFO, "   Buffer canary: Enabled (latency: %d ms)\n", ctx->srt_latency);
+        av_log(avctx, AV_LOG_INFO, "   Methods: %s%s\n",
+               ctx->enable_encoder_restart ? "Encoder Restart" : "",
+               ctx->enable_frame_skip ? (ctx->enable_encoder_restart ? " + Frame Skip" : "Frame Skip") : "");
+    }
+
     // Register HTTP encoder control
     if (ctx->http_control_enable) {
         encoder_control_init(ctx->http_control_port);
@@ -735,6 +787,199 @@ static int libx265_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int i;
 
     ctx->api->picture_init(ctx->params, &x265pic);
+
+    // SRT-aware rate control: Check bandwidth and adjust bitrate
+    if (ctx->srt_rate_control && !ctx->srt_disable_auto_adjust && pic) {
+        int64_t current_time = av_gettime_relative();
+        
+        // Check every 500ms for faster response
+        if (current_time - ctx->last_srt_check_time > 500000) {
+            SRTNetworkStats stats;
+            
+            // Try to get SRT stats from global state
+            if (ff_srt_get_last_stats(&stats) == 0) {
+                // 🐦 BUFFER CANARY: Check for instant congestion detection
+                int buffer_canary_triggered = 0;
+                int64_t buffer_warning_threshold = ctx->srt_latency / 2;
+                int64_t buffer_critical_threshold = (ctx->srt_latency * 3) / 4;
+                
+                if (stats.send_buffer_ms > buffer_critical_threshold) {
+                    av_log(avctx, AV_LOG_WARNING, 
+                           "[SRT] 🐦 CANARY CRITICAL: Buffer filling (%lld ms / %d ms latency)! Bandwidth drop detected!\n",
+                           (long long)stats.send_buffer_ms, ctx->srt_latency);
+                    buffer_canary_triggered = 2;
+                } else if (stats.send_buffer_ms > buffer_warning_threshold) {
+                    av_log(avctx, AV_LOG_INFO, 
+                           "[SRT] 🐦 CANARY WARNING: Buffer rising (%lld ms / %d ms latency)\n",
+                           (long long)stats.send_buffer_ms, ctx->srt_latency);
+                    buffer_canary_triggered = 1;
+                }
+                
+                // Calculate target bitrate based on available bandwidth
+                double available_bw_bps = stats.bandwidth_mbps * 1000000.0;
+                int64_t target_bitrate = (int64_t)(available_bw_bps * 0.8);
+                
+                // CANARY OVERRIDE: If buffer is critically full, force aggressive downshift
+                if (buffer_canary_triggered == 2) {
+                    int64_t canary_target = ctx->last_applied_bitrate * 0.6;
+                    if (canary_target < target_bitrate) {
+                        av_log(avctx, AV_LOG_WARNING, 
+                               "[SRT] 🐦 CANARY ACTION: Overriding BW target (%.2f → %.2f Mbps)\n",
+                               target_bitrate / 1000000.0, canary_target / 1000000.0);
+                        target_bitrate = canary_target;
+                    }
+                }
+                
+                // Reduce further based on packet loss
+                if (stats.packet_loss_rate > 5.0) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.5);
+                } else if (stats.packet_loss_rate > 2.0) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.7);
+                } else if (stats.packet_loss_rate > 0.5) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.85);
+                }
+                
+                // Reduce based on RTT
+                if (stats.rtt_ms > 500) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.6);
+                } else if (stats.rtt_ms > 300) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.8);
+                } else if (stats.rtt_ms > 150) {
+                    target_bitrate = (int64_t)(target_bitrate * 0.9);
+                }
+                
+                // Clamp to min/max
+                if (target_bitrate < ctx->srt_min_bitrate)
+                    target_bitrate = ctx->srt_min_bitrate;
+                if (target_bitrate > ctx->srt_max_bitrate)
+                    target_bitrate = ctx->srt_max_bitrate;
+                
+                // Check if change is significant (configurable threshold)
+                int64_t bitrate_diff = target_bitrate > ctx->last_applied_bitrate ?
+                    target_bitrate - ctx->last_applied_bitrate :
+                    ctx->last_applied_bitrate - target_bitrate;
+                
+                double min_change_percent = ctx->srt_bitrate_change_threshold_percent / 100.0;
+                int64_t min_change_threshold = (int64_t)(ctx->last_applied_bitrate * min_change_percent);
+                
+                if (bitrate_diff < min_change_threshold) {
+                    // Insignificant change, skip
+                    if (ctx->upshift_pending_start_time > 0) {
+                        ctx->upshift_pending_start_time = 0;
+                        ctx->upshift_health_check_count = 0;
+                    }
+                    ctx->last_srt_check_time = current_time;
+                    goto skip_srt_changes;
+                }
+                
+                int is_downshift = (target_bitrate < ctx->last_applied_bitrate);
+                int is_upshift = (target_bitrate > ctx->last_applied_bitrate);
+                int should_apply = 0;
+                
+                if (is_downshift) {
+                    // Instant downshift
+                    if (ctx->upshift_pending_start_time > 0) {
+                        ctx->upshift_pending_start_time = 0;
+                        ctx->upshift_health_check_count = 0;
+                    }
+                    should_apply = 1;
+                    av_log(avctx, AV_LOG_INFO, "[SRT Rate Control] ⚡ INSTANT DOWNSHIFT: %.2f → %.2f Mbps (%.1f%% drop)\n",
+                           ctx->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0,
+                           (bitrate_diff * 100.0) / ctx->last_applied_bitrate);
+                }
+                else if (is_upshift) {
+                    // Delayed upshift with health check
+                    if (ctx->srt_upshift_delay_ms == 0) {
+                        should_apply = 1;
+                    } else {
+                        if (ctx->upshift_pending_start_time == 0) {
+                            ctx->upshift_pending_start_time = current_time;
+                            ctx->upshift_pending_target_bitrate = target_bitrate;
+                            ctx->upshift_health_check_count = 0;
+                            ctx->upshift_health_check_required = (ctx->srt_upshift_delay_ms + 500 - 1) / 500;
+                        } else {
+                            int64_t elapsed_ms = (current_time - ctx->upshift_pending_start_time) / 1000;
+                            if (target_bitrate >= ctx->upshift_pending_target_bitrate * 0.95) {
+                                ctx->upshift_health_check_count++;
+                            } else {
+                                ctx->upshift_pending_start_time = current_time;
+                                ctx->upshift_pending_target_bitrate = target_bitrate;
+                                ctx->upshift_health_check_count = 0;
+                            }
+                            
+                            if (elapsed_ms >= ctx->srt_upshift_delay_ms && 
+                                ctx->upshift_health_check_count >= ctx->upshift_health_check_required) {
+                                int64_t final_diff = target_bitrate - ctx->last_applied_bitrate;
+                                if (final_diff >= min_change_threshold) {
+                                    should_apply = 1;
+                                    ctx->upshift_pending_start_time = 0;
+                                    ctx->upshift_health_check_count = 0;
+                                    av_log(avctx, AV_LOG_INFO, "[SRT Rate Control] ✓ UPSHIFT APPROVED: %.2f → %.2f Mbps (%.1f%% change)\n",
+                                           ctx->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0,
+                                           (final_diff * 100.0) / ctx->last_applied_bitrate);
+                                } else {
+                                    ctx->upshift_pending_start_time = 0;
+                                    ctx->upshift_health_check_count = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (should_apply && ctx->enable_encoder_restart) {
+                    // Rate limiting
+                    int64_t time_since_last_restart = current_time - ctx->last_encoder_restart_time;
+                    int64_t min_restart_interval = 5000000;
+                    
+                    if (ctx->last_encoder_restart_time > 0 && time_since_last_restart < min_restart_interval) {
+                        av_log(avctx, AV_LOG_INFO, "[SRT] ⏸️  Encoder restart rate-limited (%.1fs since last, need %.1fs)\n",
+                               time_since_last_restart / 1000000.0, min_restart_interval / 1000000.0);
+                        ctx->last_srt_check_time = current_time;
+                        goto skip_srt_changes;
+                    }
+                    
+                    // Duplicate prevention
+                    if (ctx->restart_pending && llabs(ctx->last_applied_bitrate - target_bitrate) < 100000) {
+                        ctx->last_srt_check_time = current_time;
+                        goto skip_srt_changes;
+                    }
+                    
+                    ctx->restart_pending = 1;
+                    
+                    av_log(avctx, AV_LOG_INFO, "[SRT] ═══ ENCODER RESTART ═══\n");
+                    
+                    if (ctx->encoder) {
+                        ctx->api->encoder_close(ctx->encoder);
+                        ctx->encoder = NULL;
+                    }
+                    
+                    int target_kbps = target_bitrate / 1000;
+                    ctx->params->rc.bitrate = target_kbps;
+                    ctx->params->rc.vbvMaxBitrate = target_kbps;
+                    ctx->params->rc.vbvBufferSize = target_kbps / 25;
+                    
+                    ctx->encoder = ctx->api->encoder_open(ctx->params);
+                    if (!ctx->encoder) {
+                        av_log(avctx, AV_LOG_ERROR, "[SRT] ✗ RESTART FAILED\n");
+                        return AVERROR_EXTERNAL;
+                    }
+                    
+                    av_log(avctx, AV_LOG_INFO, "[SRT] ✓ RESTARTED: %.2f → %.2f Mbps\n",
+                           ctx->last_applied_bitrate / 1000000.0, target_bitrate / 1000000.0);
+                    
+                    ctx->last_applied_bitrate = target_bitrate;
+                    ctx->last_encoder_restart_time = current_time;
+                    ctx->restart_pending = 0;
+                    avctx->bit_rate = target_bitrate;
+                    avctx->rc_max_rate = target_bitrate;
+                }
+                
+                ctx->last_srt_check_time = current_time;
+            }
+        }
+    }
+    
+    skip_srt_changes:
 
     // HTTP encoder control: Check for commands
     if (ctx->http_control_registered) {
@@ -1100,6 +1345,15 @@ static const AVOption options[] = {
     { "dolbyvision", "Enable Dolby Vision RPU coding", OFFSET(dovi.enable), AV_OPT_TYPE_BOOL, {.i64 = FF_DOVI_AUTOMATIC }, -1, 1, VE, .unit = "dovi" },
     {   "auto", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = FF_DOVI_AUTOMATIC}, .flags = VE, .unit = "dovi" },
 #endif
+    // SRT rate control options
+    { "srt_rate_control", "Enable SRT network-aware rate control (requires SRT output with enable_stats=1)", OFFSET(srt_rate_control), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    { "srt_min_bitrate", "Minimum bitrate for SRT rate control (bps)", OFFSET(srt_min_bitrate), AV_OPT_TYPE_INT64, { .i64 = 500000 }, 100000, INT64_MAX, VE },
+    { "srt_max_bitrate", "Maximum bitrate for SRT rate control (bps)", OFFSET(srt_max_bitrate), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, 500000, INT64_MAX, VE },
+    { "srt_latency", "SRT latency in milliseconds (for buffer canary detection)", OFFSET(srt_latency), AV_OPT_TYPE_INT, { .i64 = 3000 }, 120, 8000, VE },
+    { "srt_bitrate_change_threshold", "Minimum bandwidth change to trigger bitrate adjustment (percentage, default 30%)", OFFSET(srt_bitrate_change_threshold_percent), AV_OPT_TYPE_INT, { .i64 = 30 }, 5, 100, VE },
+    { "srt_upshift_delay_ms", "Delay before increasing bitrate when bandwidth improves (ms, 0=instant)", OFFSET(srt_upshift_delay_ms), AV_OPT_TYPE_INT, { .i64 = 5000 }, 0, 60000, VE },
+    { "srt_disable_auto_adjust", "Disable automatic SRT bandwidth adjustment (use HTTP control only)", OFFSET(srt_disable_auto_adjust), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+    
     // Dynamic rate control options (work with SRT OR HTTP)
     { "enable_encoder_restart", "Enable encoder restart for instant bitrate changes (non-graceful, 1-2 frame drop)", OFFSET(enable_encoder_restart), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
     { "enable_frame_skip", "Enable frame skipping for instant bitrate reduction (aggressive control)", OFFSET(enable_frame_skip), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
