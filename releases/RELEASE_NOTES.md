@@ -199,6 +199,12 @@ See README.md for full configuration options and examples.
 - ⚙️ **Encoder restart** - Instant bitrate changes with 1-2 frame drop
 - ⚙️ **Frame skip** - Alternative bitrate reduction via FPS adjustment
 
+### HTTP Control & Integration
+- 🎛️ **HTTP encoder control** - Manual bitrate adjustment via REST API (port 8081)
+- 🎛️ **Hybrid mode** - Combine SRT auto-adjustment with HTTP overrides
+- 🎛️ **HTTP-only mode** - Disable SRT auto-adjustment for full manual control
+- 🎛️ **MSwitch HTTP API** - Source switching and status monitoring (port 8080)
+
 ### Performance Improvements
 - ⚡ **50-100ms response time** - Down from 5-10 seconds with buffer canary
 - ⚡ **5-second warmup** - Ignores fake initial bandwidth stats
