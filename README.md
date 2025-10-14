@@ -10,7 +10,8 @@ For the original FFmpeg documentation, see [README_FFMPEG.md](README_FFMPEG.md).
 
 ## Features
 
-- **Multi-Source Input**: Connect to multiple video sources (UDP, RTSP, etc.)
+### MSwitch Direct Demuxer
+- **Multi-Source Input**: Connect to multiple video sources (UDP, RTSP, SRT, etc.)
 - **Automatic Failover**: Instantly switch to healthy sources when active source fails
 - **Health Monitoring**: Continuous background monitoring of all sources
 - **Manual Switching**: HTTP API for manual source control
@@ -18,6 +19,14 @@ For the original FFmpeg documentation, see [README_FFMPEG.md](README_FFMPEG.md).
 - **Automatic Reconnection**: Sources automatically reconnect when they come back online
 - **Timestamp Continuity**: Seamless timestamp handling across switches
 - **Zero-Copy Buffer**: Efficient ring buffer for each source
+
+### SRT Adaptive Bitrate
+- **Automatic Bitrate Adjustment**: Real-time encoder bitrate adaptation based on SRT network stats
+- **Buffer Canary System**: Sub-100ms congestion detection via send buffer monitoring
+- **Instant Downshifts**: Immediate response to bandwidth drops (prevents bufferbloat)
+- **Gradual Upshifts**: Conservative bitrate increases with health checks (prevents oscillation)
+- **Configurable Thresholds**: Control sensitivity and stability with customizable parameters
+- **Visual Monitoring**: Real-time plotting tools for debugging and demonstration
 
 ## Building
 
@@ -336,6 +345,289 @@ ffmpeg -re -i video1.mp4 -c:v libx264 -f mpegts udp://127.0.0.1:12351 &
 ```
 
 Use SRT only when you need encryption or reliable delivery over internet/WAN.
+
+## SRT Auto Bitrate Adjustment
+
+FFmpeg now includes **automatic SRT-aware bitrate adjustment** for adaptive streaming over unreliable networks. The encoder monitors SRT statistics in real-time and adjusts the video bitrate to match available bandwidth, preventing bufferbloat and packet loss.
+
+### Quick Start
+
+```bash
+# Basic SRT output with auto bitrate adjustment
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast \
+  -enable_encoder_restart 1 \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 3000000 \
+  -srt_max_bitrate 25000000 \
+  -f mpegts "srt://receiver:4200?mode=listener&latency=3000"
+```
+
+**Important**: You must set `-enable_encoder_restart 1` for SRT auto bitrate adjustment to work. Without this, the encoder will not respond to SRT network conditions.
+
+### How It Works
+
+The encoder continuously monitors SRT network statistics:
+- **Bandwidth estimation** - Available network throughput
+- **Packet loss rate** - Percentage of lost packets
+- **Buffer fill time** - How long packets are waiting in send buffer (buffer canary)
+- **RTT (Round-Trip Time)** - Network latency
+
+Based on these metrics, it automatically:
+1. **Downshifts immediately** when congestion is detected (via buffer canary or loss)
+2. **Upshifts gradually** after sustained bandwidth improvement (with health checks)
+3. **Prevents oscillation** by requiring significant changes (default 30% threshold)
+
+### Configuration Options
+
+**Encoder Support:** All options below work with both `libx264` (H.264) and `libx265` (H.265/HEVC).
+
+#### Core Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `-srt_rate_control` | bool | 0 | Enable SRT-aware automatic bitrate adjustment |
+| `-srt_min_bitrate` | int | 1000000 | Minimum bitrate in bits per second (1 Mbps) |
+| `-srt_max_bitrate` | int | 50000000 | Maximum bitrate in bits per second (50 Mbps) |
+| `-srt_bitrate_change_threshold` | int | 30 | Minimum change percentage to trigger adjustment (%) |
+| `-srt_upshift_delay_ms` | int | 5000 | Delay before increasing bitrate (milliseconds) |
+| `-enable_encoder_restart` | bool | 0 | Enable instant bitrate changes via encoder restart (recommended) |
+| `-enable_frame_skip` | bool | 0 | Enable frame skipping for bitrate reduction (alternative to restart) |
+
+#### Advanced Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `-srt_disable_auto_adjust` | bool | 0 | Disable automatic adjustment (manual control only) |
+| `-srt_upshift_health_checks` | int | 10 | Number of health checks required before upshift |
+| `-srt_latency` | int | 3000 | SRT latency in milliseconds (used for buffer canary detection) |
+| `-min_fps_before_restart` | int | 15 | Minimum FPS before triggering encoder restart (when both restart and frame skip enabled) |
+
+**Note on Encoder Restart vs Frame Skip:**
+- **`-enable_encoder_restart 1` (recommended):** Closes and reopens the encoder with the new bitrate. This provides instant and precise bitrate changes. Causes a brief 1-2 frame drop during the restart.
+- **`-enable_frame_skip 1` (alternative):** Reduces bitrate by dropping frames to lower the effective framerate. Smoother but less precise. Use this if you need to avoid any encoder restarts.
+- You can enable both: The system will use frame skip when possible and fall back to encoder restart when FPS drops below a threshold (see `-min_fps_before_restart`).
+
+### Buffer Canary System
+
+The **buffer canary** provides sub-second congestion detection by monitoring SRT's send buffer fill time:
+
+- **Warning threshold:** 50ms - Triggers 20% bitrate reduction
+- **Critical threshold:** 100ms - Triggers 50% bitrate reduction
+
+This responds **instantly** to bandwidth drops, much faster than waiting for SRT's bandwidth estimation to update (which can take 5-10 seconds).
+
+### Examples
+
+#### Example 1: Basic Adaptive Streaming
+
+```bash
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast -tune zerolatency \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 2000000 \
+  -srt_max_bitrate 15000000 \
+  -enable_encoder_restart 1 \
+  -f mpegts "srt://0.0.0.0:4200?mode=listener&latency=3000&enable_stats=1"
+```
+
+**Result:** Encoder automatically adapts between 2-15 Mbps based on network conditions.
+
+#### Example 2: Conservative Upshifts
+
+```bash
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 3000000 \
+  -srt_max_bitrate 25000000 \
+  -srt_bitrate_change_threshold 40 \
+  -srt_upshift_delay_ms 10000 \
+  -srt_upshift_health_checks 20 \
+  -enable_encoder_restart 1 \
+  -f mpegts "srt://output:4200?mode=caller&latency=3000"
+```
+
+**Result:** 
+- Only changes bitrate if difference is >40%
+- Waits 10 seconds before upshifting
+- Requires 20 consecutive health checks (20 seconds of good bandwidth)
+- Very stable, minimal oscillation
+
+#### Example 3: Aggressive Response
+
+```bash
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 1000000 \
+  -srt_max_bitrate 50000000 \
+  -srt_bitrate_change_threshold 15 \
+  -srt_upshift_delay_ms 2000 \
+  -enable_encoder_restart 1 \
+  -f mpegts "srt://output:4200?mode=caller&latency=1000"
+```
+
+**Result:**
+- Responds to smaller changes (>15%)
+- Quick upshifts (2 second delay)
+- Good for fluctuating networks where you want to maximize quality
+
+#### Example 4: Wide Bitrate Range for Mobile Networks
+
+```bash
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset veryfast -tune zerolatency \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 500000 \
+  -srt_max_bitrate 10000000 \
+  -enable_encoder_restart 1 \
+  -f mpegts "srt://mobile.server:4200?mode=caller&latency=5000"
+```
+
+**Result:** Handles 0.5-10 Mbps range for mobile/cellular connections.
+
+### Monitoring and Debugging
+
+#### Enable SRT Statistics Logging
+
+Add `enable_stats=1` to your SRT URL:
+
+```bash
+"srt://0.0.0.0:4200?mode=listener&latency=3000&enable_stats=1"
+```
+
+This logs SRT stats every second:
+```
+[srt] SRT Stats: BW=12.50 Mbps, Loss=2.30%, RTT=45.2 ms, BufMs=75, Unrecovered=123 pkts (0.15%)
+```
+
+#### Watch Rate Control Decisions
+
+```bash
+./ffmpeg ... 2>&1 | grep --color=always "SRT Rate Control\|RESTARTED\|CANARY"
+```
+
+You'll see messages like:
+```
+[libx264] [SRT Rate Control] ⚡ INSTANT DOWNSHIFT: 25.00 → 15.00 Mbps (40.0% drop)
+[libx264] [SRT] 🐦 CANARY WARNING: Buffer rising (75 ms > 50 ms threshold)
+[libx264] [SRT] ✓ RESTARTED: 25.00 → 12.50 Mbps
+[libx264] [SRT Rate Control] 🕒 UPSHIFT PENDING: 12.50 → 18.00 Mbps (waiting 5000 ms)
+```
+
+#### Run the Interactive Demo
+
+```bash
+sudo ./test_srt_docker_demo.sh
+```
+
+This runs a visual demo with:
+- Real-time plotting of bitrate adaptation
+- Automated bandwidth constraints (25→15→5→25 Mbps)
+- Visual overlay showing current phase
+- Packet loss and buffer statistics
+
+### Best Practices
+
+1. **Always enable encoder restart** (`-enable_encoder_restart 1`) for instant bitrate changes
+2. **Set appropriate min/max range** based on your expected network conditions
+3. **Use 30% threshold** (default) for balanced behavior - prevents micro-adjustments
+4. **Enable SRT stats** (`enable_stats=1` in URL) for monitoring
+5. **Set SRT latency** appropriate to your network (1-3 seconds typical)
+6. **Use ultrafast preset** for real-time encoding with instant adjustments
+
+### Configuration Presets
+
+#### Stable Connection (LAN/WAN)
+```bash
+-srt_rate_control 1 \
+-srt_min_bitrate 5000000 \
+-srt_max_bitrate 25000000 \
+-srt_bitrate_change_threshold 30 \
+-srt_upshift_delay_ms 5000 \
+-enable_encoder_restart 1
+```
+
+#### Unstable Connection (Mobile/Wireless)
+```bash
+-srt_rate_control 1 \
+-srt_min_bitrate 500000 \
+-srt_max_bitrate 10000000 \
+-srt_bitrate_change_threshold 25 \
+-srt_upshift_delay_ms 8000 \
+-srt_upshift_health_checks 15 \
+-enable_encoder_restart 1
+```
+
+#### Low-Latency (Gaming/Interactive)
+```bash
+-srt_rate_control 1 \
+-srt_min_bitrate 2000000 \
+-srt_max_bitrate 15000000 \
+-srt_bitrate_change_threshold 20 \
+-srt_upshift_delay_ms 3000 \
+-enable_encoder_restart 1 \
+-preset ultrafast -tune zerolatency -g 30
+```
+
+### Understanding the Metrics
+
+**Buffer Canary (BufMs):**
+- Measures how long packets wait in SRT's send buffer
+- >50ms = Network congestion starting
+- >100ms = Severe congestion, immediate action needed
+- Fastest congestion indicator (responds in <1 second)
+
+**Bandwidth (BW):**
+- SRT's estimate of available network bandwidth
+- Updated every 1-2 seconds
+- Used to calculate target bitrate (80% of available)
+
+**Loss Rate:**
+- Total packet loss including retransmitted packets
+- High loss (>5%) triggers additional bitrate reduction
+
+**Unrecovered Packets:**
+- Packets that were lost and couldn't be recovered via retransmission
+- Critical metric for actual data loss
+- Per-second percentage shows real-time quality
+
+### Technical Details
+
+**Warmup Period:** The first 5 seconds ignore SRT statistics to avoid reacting to fake initial values.
+
+**Downshift Strategy:** Instant response to protect against congestion.
+
+**Upshift Strategy:** Gradual with health checks to avoid premature increases.
+
+**Encoder Restart:** Closes and reopens the encoder for instant bitrate changes (1-2 frame glitch).
+
+### Troubleshooting
+
+**Issue: Bitrate oscillates rapidly**
+```bash
+# Increase threshold and delay
+-srt_bitrate_change_threshold 40 \
+-srt_upshift_delay_ms 10000
+```
+
+**Issue: Too slow to adapt down**
+- This shouldn't happen with buffer canary enabled
+- Check that SRT stats are being logged (`enable_stats=1`)
+- Verify encoder restart is enabled
+
+**Issue: Never upshifts**
+```bash
+# Reduce upshift requirements
+-srt_upshift_delay_ms 3000 \
+-srt_upshift_health_checks 5
+```
+
+**Issue: Starts at wrong bitrate**
+- Check that warmup period completes (first 5 seconds)
+- Verify `-srt_max_bitrate` is set correctly
+- Look for initial `RESTARTED: 0.00 → X.XX Mbps` log message
 
 ## HTTP Control API
 
