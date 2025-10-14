@@ -70,6 +70,7 @@ int srt_get_network_stats(SRTSOCKET fd, SRTNetworkStats *stats)
     stats->recv_buffer_available = perf.byteAvailRcvBuf;
     stats->recv_buffer_size = perf.byteMSS * 1000;
     stats->packets_in_flight = perf.pktFlightSize;
+    stats->send_buffer_ms = perf.msSndBuf;  // ⭐ CANARY: Milliseconds of data in send buffer
     
     // Connection time
     stats->connection_time_ms = perf.msTimeStamp;

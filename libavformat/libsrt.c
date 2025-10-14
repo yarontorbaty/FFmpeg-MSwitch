@@ -620,10 +620,11 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
             
             // Log statistics
             av_log(h, AV_LOG_INFO, 
-                   "SRT Stats: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms\n",
+                   "SRT Stats: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms, BufMs=%lld\n",
                    s->last_stats.bandwidth_mbps,
                    s->last_stats.packet_loss_rate,
-                   s->last_stats.rtt_ms);
+                   s->last_stats.rtt_ms,
+                   (long long)s->last_stats.send_buffer_ms);
         }
     }
 

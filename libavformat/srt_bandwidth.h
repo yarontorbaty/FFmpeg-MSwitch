@@ -46,6 +46,7 @@ typedef struct SRTNetworkStats {
     int recv_buffer_available;       // Available receive buffer (bytes)
     int recv_buffer_size;            // Total receive buffer size (bytes)
     int packets_in_flight;           // Packets currently in flight
+    int64_t send_buffer_ms;          // ⭐ CANARY: Time until send buffer drains (milliseconds)
     
     // Connection health
     int is_connected;                // Connection status
