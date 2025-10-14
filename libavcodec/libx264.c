@@ -695,12 +695,24 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
     if (x4->srt_rate_control && !x4->srt_disable_auto_adjust && frame) {
         int64_t current_time = av_gettime_relative();
         
+        // WARMUP: Ignore SRT stats for the first 5 seconds to let connection stabilize
+        static int64_t first_frame_time = 0;
+        if (first_frame_time == 0) {
+            first_frame_time = current_time;
+        }
+        int64_t elapsed_since_start = current_time - first_frame_time;
+        
                 // Check every 500ms for faster response
                 if (current_time - x4->last_srt_check_time > 500000) {
             SRTNetworkStats stats;
             
             // Try to get SRT stats from global state
             if (ff_srt_get_last_stats(&stats) == 0) {
+                // Skip rate control during warmup period (first 5 seconds)
+                if (elapsed_since_start < 5000000) {  // 5 seconds in microseconds
+                    x4->last_srt_check_time = current_time;
+                    goto skip_encoder_changes;
+                }
                 // 🐦 BUFFER CANARY: Check for instant congestion detection
                 int buffer_canary_triggered = 0;
                 // Use aggressive thresholds for instant detection (not based on SRT latency)
@@ -723,12 +735,23 @@ static int X264_frame(AVCodecContext *ctx, AVPacket *pkt, const AVFrame *frame,
                 double available_bw_bps = stats.bandwidth_mbps * 1000000.0;
                 int64_t target_bitrate = (int64_t)(available_bw_bps * 0.8); // 80% of available BW
                 
-                // CANARY OVERRIDE: If buffer is critically full, force aggressive downshift
+                // CANARY OVERRIDE: If buffer is filling, force immediate reduction
+                // This responds faster than waiting for SRT bandwidth estimation to update
                 if (buffer_canary_triggered == 2) {
-                    int64_t canary_target = x4->last_applied_bitrate * 0.6;  // Instant 40% reduction
+                    // Critical: 50% reduction
+                    int64_t canary_target = x4->last_applied_bitrate * 0.5;
                     if (canary_target < target_bitrate) {
                         av_log(ctx, AV_LOG_WARNING, 
-                               "[SRT] 🐦 CANARY ACTION: Overriding BW target (%.2f → %.2f Mbps)\n",
+                               "[SRT] 🐦 CANARY CRITICAL: Overriding BW target (%.2f → %.2f Mbps) - 50%% reduction\n",
+                               target_bitrate / 1000000.0, canary_target / 1000000.0);
+                        target_bitrate = canary_target;
+                    }
+                } else if (buffer_canary_triggered == 1) {
+                    // Warning: 20% reduction
+                    int64_t canary_target = x4->last_applied_bitrate * 0.8;
+                    if (canary_target < target_bitrate) {
+                        av_log(ctx, AV_LOG_INFO, 
+                               "[SRT] 🐦 CANARY WARNING: Overriding BW target (%.2f → %.2f Mbps) - 20%% reduction\n",
                                target_bitrate / 1000000.0, canary_target / 1000000.0);
                         target_bitrate = canary_target;
                     }
@@ -1781,6 +1804,10 @@ static av_cold int X264_init(AVCodecContext *avctx)
                (long long)x4->srt_max_bitrate, x4->srt_max_bitrate / 1000000.0,
                (long long)x4->last_applied_bitrate, x4->last_applied_bitrate / 1000000.0,
                x4->original_gop_size);
+        
+        // Log initial target for plotting
+        av_log(avctx, AV_LOG_INFO, "[SRT] ✓ RESTARTED: 0.00 → %.2f Mbps\n",
+               x4->last_applied_bitrate / 1000000.0);
     }
     x4->params.rc.b_stat_write      = avctx->flags & AV_CODEC_FLAG_PASS1;
     if (avctx->flags & AV_CODEC_FLAG_PASS2) {

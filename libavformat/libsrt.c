@@ -83,6 +83,10 @@ typedef struct SRTContext {
     int enable_stats;
     int64_t last_stats_time;
     SRTNetworkStats last_stats;
+    
+    // Track previous values for per-second delta calculation
+    int64_t prev_packets_unrecovered;
+    int64_t prev_packets_sent_total;
 #if SRT_VERSION_VALUE >= 0x010302
     int enforced_encryption;
     int kmrefreshrate;
@@ -530,6 +534,10 @@ static int libsrt_setup(URLContext *h, const char *uri, int flags)
     h->is_streamed = 1;
     s->fd = fd;
     s->eid = eid;
+    
+    // Initialize tracking for per-second delta calculations
+    s->prev_packets_unrecovered = 0;
+    s->prev_packets_sent_total = 0;
 
     freeaddrinfo(ai);
     return 0;
@@ -618,13 +626,28 @@ static int libsrt_write(URLContext *h, const uint8_t *buf, int size)
             global_srt_stats = s->last_stats;
             global_srt_stats_valid = 1;
             
+            // Calculate unrecovered percentage based on delta from last second
+            double unrecovered_pct = 0.0;
+            int64_t delta_unrecovered = s->last_stats.packets_unrecovered - s->prev_packets_unrecovered;
+            int64_t delta_total = s->last_stats.packets_sent_total - s->prev_packets_sent_total;
+            
+            if (delta_total > 0) {
+                unrecovered_pct = ((double)delta_unrecovered / (double)delta_total) * 100.0;
+            }
+            
+            // Update previous values for next calculation
+            s->prev_packets_unrecovered = s->last_stats.packets_unrecovered;
+            s->prev_packets_sent_total = s->last_stats.packets_sent_total;
+            
             // Log statistics
             av_log(h, AV_LOG_INFO, 
-                   "SRT Stats: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms, BufMs=%lld\n",
+                   "SRT Stats: BW=%.2f Mbps, Loss=%.2f%%, RTT=%.1f ms, BufMs=%lld, Unrecovered=%lld pkts (%.2f%%)\n",
                    s->last_stats.bandwidth_mbps,
                    s->last_stats.packet_loss_rate,
                    s->last_stats.rtt_ms,
-                   (long long)s->last_stats.send_buffer_ms);
+                   (long long)s->last_stats.send_buffer_ms,
+                   (long long)s->last_stats.packets_unrecovered,
+                   unrecovered_pct);
         }
     }
 
