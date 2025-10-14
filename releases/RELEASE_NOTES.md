@@ -1,25 +1,38 @@
-# FFmpeg-MSwitch v1.0.1
+# FFmpeg-MSwitch v1.2
 
-Multi-source video switching with seamless failover for FFmpeg.
+Multi-source video switching with seamless failover + SRT adaptive bitrate streaming for FFmpeg.
 
 ## 🎯 What's Included
 
 - **FFmpeg** with mswitchdirect demuxer (cross-platform)
+- **SRT adaptive bitrate streaming** with sub-100ms congestion detection
 - **CLI keyboard controls** (macOS/Linux) + **HTTP API** (all platforms)
 - **SRT relay server** for multi-client support
-- **Helper scripts** for easy SRT setup
+- **Real-time monitoring tools** with bandwidth visualization
 - Full documentation and examples
 
 ## ✨ Features
 
+### MSwitch Direct Demuxer
 - ✅ **Multi-source failover** - Automatic and manual switching between video sources
 - ✅ **Clean cutover** - Smooth transitions with decoder flush and I-frame sync
 - ✅ **Auto-failover** - Immediate switch when source becomes unhealthy
 - ✅ **Freeze-frame** - Repeats last frame during source loss
 - ✅ **HTTP API** - Control switching via REST API on port 8099
 - ✅ **CLI keyboard** - Press 1/2/3 to switch, s for status (Unix only)
+
+### SRT Adaptive Bitrate (NEW in v1.2)
+- ✅ **Automatic bitrate adjustment** - Real-time encoder adaptation based on SRT network stats
+- ✅ **Buffer canary system** - Sub-100ms congestion detection (50ms warning, 100ms critical)
+- ✅ **Instant downshifts** - Immediate 20-50% bitrate reduction on congestion
+- ✅ **Gradual upshifts** - Conservative increases with health checks to prevent oscillation
+- ✅ **Enhanced libsrt integration** - Per-second unrecovered packet metrics
+- ✅ **Real-time visualization** - Bandwidth plotting with sender/receiver comparison
+- ✅ **Both H.264 and HEVC** - Works with libx264 and libx265
+
+### Core Features
 - ✅ **H.264** (libx264), **HEVC** (libx265), **AV1** (libaom-av1)
-- ✅ **SRT protocol** with improved error handling
+- ✅ **SRT protocol** with enhanced statistics and monitoring
 - ✅ **All standard filters** - drawtext, drawbox, overlay, scale, crop, etc.
 - ✅ **SRT relay server** with clean signal handling
 - ✅ **Optimized builds** - Release configuration for all platforms
@@ -30,25 +43,25 @@ Multi-source video switching with seamless failover for FFmpeg.
 - **Architecture:** M1/M2/M3/M4
 - **Requires:** macOS 11.0 (Big Sur) or later
 - **Controls:** CLI keyboard + HTTP API
-- **File:** `ffmpeg-mswitch-macos-arm64-v1.0.1.tar.gz`
+- **File:** `ffmpeg-mswitch-macos-arm64-v1.2.tar.gz`
 
 ### macOS (x86_64 - Intel)
 - **Architecture:** Intel 64-bit
 - **Requires:** macOS 10.13 or later
 - **Controls:** CLI keyboard + HTTP API
-- **File:** `ffmpeg-mswitch-macos-x86_64-v1.0.1.tar.gz`
+- **File:** `ffmpeg-mswitch-macos-x86_64-v1.2.tar.gz`
 
 ### Linux (x86_64)
 - **Architecture:** x86_64
 - **Requires:** glibc 2.31+
 - **Controls:** CLI keyboard + HTTP API
-- **File:** `ffmpeg-mswitch-linux-x86_64-v1.0.1.tar.gz`
+- **File:** `ffmpeg-mswitch-linux-x86_64-v1.2.tar.gz`
 
 ### Windows (x86_64)
 - **Architecture:** x86_64
 - **Requires:** Windows 10 or later
 - **Controls:** HTTP API only
-- **File:** `ffmpeg-mswitch-windows-x86_64-v1.0.1.zip`
+- **File:** `ffmpeg-mswitch-windows-x86_64-v1.2.zip`
 
 ## 📦 Installation
 
@@ -66,7 +79,7 @@ cd ffmpeg-mswitch-*/
 ### Windows
 ```powershell
 # Extract the ZIP file
-Expand-Archive ffmpeg-mswitch-windows-x86_64-v1.0.1.zip
+Expand-Archive ffmpeg-mswitch-windows-x86_64-v1.2.zip
 
 # Test
 .\ffmpeg.exe -version
@@ -126,6 +139,27 @@ While ffmpeg is running:
 # See tools/srt_relay/README.md for setup instructions
 ```
 
+### SRT Adaptive Bitrate Streaming (NEW in v1.2)
+
+```bash
+# Basic SRT output with auto bitrate adjustment
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast \
+  -enable_encoder_restart 1 \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 3000000 \
+  -srt_max_bitrate 25000000 \
+  -f mpegts "srt://receiver:4200?mode=listener&latency=3000"
+```
+
+**How it works:**
+- Monitors SRT bandwidth, loss, RTT, and send buffer in real-time
+- **Downshifts instantly** when congestion detected (buffer canary: 50ms warning, 100ms critical)
+- **Upshifts gradually** after sustained improvement (configurable delay + health checks)
+- **Prevents oscillation** with 30% change threshold (configurable)
+
+See README.md for full configuration options and examples.
+
 ## 📋 Key Options
 
 | Option | Description | Default |
@@ -138,25 +172,44 @@ While ffmpeg is running:
 | `-msw_source_timeout` | Source timeout (ms) | 300 |
 | `-msw_reconnect_timeout` | Reconnection timeout (ms, 0=infinite) | 0 |
 
-## 🆕 What's New in v1.0.1
+## 🆕 What's New in v1.2
 
-### Fixes
-- ✅ **CLI keyboard commands restored** on macOS/Linux
-- ✅ **Windows build fixes** - proper cross-platform compilation
-- ✅ **GitHub Actions packaging** - uses native environment variables
-- ✅ **Cross-platform srt_relay** - builds on all platforms
+### Major New Feature: SRT Adaptive Bitrate Streaming
+- 🚀 **Enhanced libsrt integration** - Real-time network statistics monitoring
+- 🚀 **Automatic encoder bitrate adjustment** - Adapts to bandwidth changes instantly
+- 🚀 **Buffer canary system** - Sub-100ms congestion detection
+  - Warning threshold (50ms): 20% immediate bitrate reduction
+  - Critical threshold (100ms): 50% immediate bitrate reduction
+- 🚀 **Intelligent upshift strategy** - Gradual increases with health checks to prevent oscillation
+- 🚀 **Per-second packet metrics** - Delta-based unrecovered packet percentage (not cumulative)
+- 🚀 **Dual encoder support** - Works with both libx264 (H.264) and libx265 (HEVC)
 
-### Improvements
-- 🔧 Platform-specific CLI handling (stubs on Windows with helpful messages)
-- 🔧 PowerShell-based packaging for Windows (native Compress-Archive)
-- 🔧 Cross-platform Makefile for srt_relay (pthread on Unix, ws2_32 on Windows)
-- 🔧 Cleaner build system without git dependencies in CI
+### Monitoring & Debugging Tools
+- 📊 **Real-time bandwidth plotting** - Visualize SRT bandwidth vs receiver throughput
+- 📊 **ffplay integration** - Accurate receiver-side measurements
+- 📊 **Interactive demo script** - 4-phase bandwidth test with visual overlay
+- 📊 **Comprehensive logging** - Per-second SRT stats with bandwidth, loss, RTT, buffer fill time
 
-### Codebase Cleanup
-- 🧹 Removed 900+ lines of experimental code
-- 🧹 Deleted old `mswitch` demuxer (subprocess-based)
-- 🧹 Removed Unix-only experimental features
-- 🧹 Production-ready, maintainable codebase
+### Configuration Options
+- ⚙️ **Configurable thresholds** - Control sensitivity and stability
+- ⚙️ **Bitrate range** - Set min/max bitrate bounds (500kbps - 50Mbps)
+- ⚙️ **Upshift delay** - Prevent premature increases (default 5s)
+- ⚙️ **Health checks** - Require sustained improvement before upshift (default 10 checks)
+- ⚙️ **Change threshold** - Minimum bandwidth change to trigger adjustment (default 30%)
+- ⚙️ **Encoder restart** - Instant bitrate changes with 1-2 frame drop
+- ⚙️ **Frame skip** - Alternative bitrate reduction via FPS adjustment
+
+### Performance Improvements
+- ⚡ **50-100ms response time** - Down from 5-10 seconds with buffer canary
+- ⚡ **5-second warmup** - Ignores fake initial bandwidth stats
+- ⚡ **Eliminates overshoot** - No more 10+ second bitrate spikes during transitions
+- ⚡ **Accurate packet loss** - Per-second metrics prevent cumulative errors
+
+### Documentation
+- 📚 **Comprehensive README** - Full SRT auto bitrate adjustment guide
+- 📚 **Configuration presets** - Examples for stable, unstable, and low-latency connections
+- 📚 **Troubleshooting guide** - Common issues and solutions
+- 📚 **Monitoring tips** - How to interpret SRT stats and metrics
 
 ## 🔧 Troubleshooting
 
@@ -220,6 +273,6 @@ See `LICENSE.md` in the package for full license text.
 
 ---
 
-**Download:** [GitHub Releases](https://github.com/yarontorbaty/FFmpeg-MSwitch/releases/tag/v1.0.1)
+**Download:** [GitHub Releases](https://github.com/yarontorbaty/FFmpeg-MSwitch/releases/tag/v1.2)
 
 **Verify checksums:** Each package includes a `.sha256` file for verification.
