@@ -631,9 +631,11 @@ This runs a visual demo with:
 
 ## HTTP Control API
 
-The demuxer provides an HTTP API for manual control and status monitoring.
+FFmpeg-MSwitch provides HTTP APIs for both **source switching** (MSwitch demuxer) and **encoder bitrate control** (libx264/libx265).
 
-### Switch Source
+### MSwitch: Source Switching
+
+#### Switch Source
 
 ```bash
 # Switch to source 0
@@ -648,7 +650,7 @@ curl -X POST http://localhost:8080/switch/1
 - `503 Service Unavailable`: Target source is unhealthy
 - `400 Bad Request`: Invalid source index
 
-### Get Status
+#### Get Status
 
 ```bash
 curl http://localhost:8080/status
@@ -667,6 +669,69 @@ curl http://localhost:8080/status
   ]
 }
 ```
+
+### Encoder: Bitrate Control
+
+You can manually control the encoder bitrate via HTTP, either **in combination with** or **instead of** SRT automatic adjustment.
+
+#### Manual Bitrate Control (with SRT auto-adjustment)
+
+```bash
+# Start FFmpeg with both SRT auto-adjustment and HTTP control
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast \
+  -enable_encoder_restart 1 \
+  -srt_rate_control 1 \
+  -srt_min_bitrate 3000000 \
+  -srt_max_bitrate 25000000 \
+  -f mpegts "srt://receiver:4200?mode=listener"
+
+# Manually override bitrate via HTTP (takes precedence over SRT)
+curl -X POST http://localhost:8081 -d '{"bitrate": 5000, "force_idr": 1}'
+```
+
+**How it works:**
+- SRT auto-adjustment runs in the background
+- HTTP commands **override** SRT decisions when received
+- Useful for manual intervention during live streams
+
+#### HTTP-Only Mode (disable SRT auto-adjustment)
+
+```bash
+# Start FFmpeg with HTTP control ONLY (no SRT auto-adjustment)
+./ffmpeg -re -i input.mp4 \
+  -c:v libx264 -preset ultrafast \
+  -enable_encoder_restart 1 \
+  -srt_rate_control 1 \
+  -srt_disable_auto_adjust 1 \
+  -f mpegts "srt://receiver:4200?mode=listener"
+
+# Control bitrate entirely via HTTP
+curl -X POST http://localhost:8081 -d '{"bitrate": 8000, "force_idr": 1}'
+curl -X POST http://localhost:8081 -d '{"bitrate": 3000, "force_idr": 0}'
+```
+
+**When to use:**
+- You want full manual control over bitrate
+- You're building a custom monitoring/control system
+- You want to test specific bitrate scenarios
+
+#### HTTP Encoder Command Format
+
+**Request:**
+```bash
+curl -X POST http://localhost:8081 -d '{"bitrate": 5000, "force_idr": 1}'
+```
+
+**Parameters:**
+- `bitrate` (int, required): Target bitrate in kbps
+- `force_idr` (int, optional): Force IDR frame (1=yes, 0=no, default=1)
+- `fps` (int, optional): Target FPS (if using frame skip method)
+
+**Notes:**
+- Requires `-enable_encoder_restart 1` for instant changes
+- Alternatively use `-enable_frame_skip 1` for FPS-based reduction
+- HTTP port for encoder control is 8081 (hardcoded, different from MSwitch port 8080)
 
 ## How It Works
 
