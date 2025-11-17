@@ -184,6 +184,7 @@ jobs:
           } else {
             Write-Host "✅ SUCCESS: mswitchdirect format is recognized (got expected usage/parameter error)"
             Write-Host "This means the demuxer is properly registered."
+            exit 0
           }
       
       - name: Verify version info
@@ -195,4 +196,14 @@ jobs:
           Write-Host ""
           Write-Host "Configuration:"
           & build/bin/ffmpeg.exe -version 2>&1 | Select-String -Pattern "configuration"
+      
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows-mswitchdirect
+          path: |
+            build/bin/ffmpeg.exe
+            build/bin/ffplay.exe
+            build/bin/ffprobe.exe
+          retention-days: 7
 
