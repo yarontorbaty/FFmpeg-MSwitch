@@ -122,44 +122,50 @@ jobs:
         run: make install
       
       - name: Test mswitchdirect appears in formats
-        shell: pwsh
+        shell: msys2 {0}
         run: |
-          Write-Host "Testing that mswitchdirect demuxer is available..."
+          echo "Testing that mswitchdirect demuxer is available..."
           
-          # Check if ffmpeg exists and is executable
-          if (Test-Path build/bin/ffmpeg.exe) {
-            Write-Host "✅ ffmpeg.exe exists"
-          } else {
-            Write-Host "❌ ffmpeg.exe not found"
+          # Check if ffmpeg exists
+          if [ -f "build/bin/ffmpeg.exe" ]; then
+            echo "✅ ffmpeg.exe exists"
+            ls -lh build/bin/ffmpeg.exe
+          else
+            echo "❌ ffmpeg.exe not found"
             exit 1
-          }
+          fi
           
-          # Get ffmpeg version first
-          Write-Host "FFmpeg version:"
-          & build/bin/ffmpeg.exe -version 2>&1 | Select-Object -First 3
+          # Try to run ffmpeg and capture both stdout and stderr
+          echo ""
+          echo "Testing ffmpeg execution..."
+          if ! ./build/bin/ffmpeg.exe -version 2>&1 | head -5; then
+            echo "❌ ffmpeg.exe failed to execute"
+            echo "Checking for missing DLLs..."
+            ldd build/bin/ffmpeg.exe | grep "not found" || echo "All DLLs found"
+            exit 1
+          fi
           
           # Get ffmpeg formats output
-          Write-Host "Getting formats list..."
-          $formats = & build/bin/ffmpeg.exe -formats 2>&1 | Out-String
-          
-          Write-Host "Formats output length: $($formats.Length) characters"
+          echo ""
+          echo "Getting formats list..."
+          formats_output=$(./build/bin/ffmpeg.exe -formats 2>&1)
           
           # Check if mswitchdirect is in the output
-          if ($formats -match "mswitchdirect") {
-            Write-Host "✅ SUCCESS: mswitchdirect demuxer found in formats list"
-            Write-Host ""
-            Write-Host "Formats output (filtered for mswitchdirect):"
-            $formats | Select-String -Pattern "mswitchdirect" | ForEach-Object { Write-Host $_.Line }
-          } else {
-            Write-Host "❌ FAILURE: mswitchdirect demuxer NOT found in formats list"
-            Write-Host ""
-            Write-Host "Full formats output (first 50 lines):"
-            $formats -split "`n" | Select-Object -First 50 | ForEach-Object { Write-Host $_ }
-            Write-Host ""
-            Write-Host "Searching for 'mswitch' or 'switch' in output:"
-            $formats | Select-String -Pattern "switch" | ForEach-Object { Write-Host $_.Line }
+          if echo "$formats_output" | grep -q "mswitchdirect"; then
+            echo "✅ SUCCESS: mswitchdirect demuxer found in formats list"
+            echo ""
+            echo "Formats output (filtered for mswitchdirect):"
+            echo "$formats_output" | grep "mswitchdirect"
+          else
+            echo "❌ FAILURE: mswitchdirect demuxer NOT found in formats list"
+            echo ""
+            echo "Checking for any demuxer entries:"
+            echo "$formats_output" | grep " D " | head -10 || echo "No demuxers found in output"
+            echo ""
+            echo "Searching for 'switch' in output:"
+            echo "$formats_output" | grep -i "switch" || echo "No 'switch' entries found"
             exit 1
-          }
+          fi
       
       - name: Test mswitchdirect can be used
         shell: pwsh
