@@ -53,7 +53,7 @@ jobs:
             --enable-libfontconfig \
             --enable-libharfbuzz \
             --enable-sdl2 \
-            --enable-stripping \
+            --disable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
             --pkg-config-flags=--static
