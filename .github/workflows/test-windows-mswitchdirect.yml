@@ -58,6 +58,29 @@ jobs:
             --extra-cflags="-O3" \
             --pkg-config-flags=--static
       
+      - name: Verify mswitchdirect in config
+        shell: msys2 {0}
+        run: |
+          echo "Checking if mswitchdirect is enabled in config..."
+          if grep -q "CONFIG_MSWITCHDIRECT_DEMUXER=yes" ffbuild/config.mak; then
+            echo "✅ CONFIG_MSWITCHDIRECT_DEMUXER=yes found in config.mak"
+          else
+            echo "❌ CONFIG_MSWITCHDIRECT_DEMUXER not found or not enabled"
+            echo "Config contents:"
+            grep -i mswitchdirect ffbuild/config.mak || echo "No mswitchdirect found"
+            exit 1
+          fi
+          
+          echo "Checking demuxer_list.c..."
+          if grep -q "ff_mswitchdirect_demuxer" libavformat/demuxer_list.c; then
+            echo "✅ ff_mswitchdirect_demuxer found in demuxer_list.c"
+          else
+            echo "❌ ff_mswitchdirect_demuxer NOT found in demuxer_list.c"
+            echo "First 20 lines of demuxer_list.c:"
+            head -20 libavformat/demuxer_list.c
+            exit 1
+          fi
+      
       - name: Build
         run: make -j$(nproc)
       
