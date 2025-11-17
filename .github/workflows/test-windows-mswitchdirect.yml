@@ -188,16 +188,13 @@ jobs:
           }
       
       - name: Verify version info
-        shell: pwsh
+        shell: msys2 {0}
         run: |
-          Write-Host "FFmpeg version information:"
-          & build/bin/ffmpeg.exe -version
-          
-          Write-Host ""
-          Write-Host "Configuration:"
-          & build/bin/ffmpeg.exe -version 2>&1 | Select-String -Pattern "configuration"
+          echo "FFmpeg version information:"
+          ./build/bin/ffmpeg.exe -version
       
       - name: Upload Windows build artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-windows-mswitchdirect
