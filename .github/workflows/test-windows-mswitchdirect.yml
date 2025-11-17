@@ -1,0 +1,117 @@
+name: Test Windows mswitchdirect
+
+on:
+  push:
+    branches:
+      - fix/windows-mswitchdirect-threading
+      - master
+  pull_request:
+    branches:
+      - master
+      - fix/windows-mswitchdirect-threading
+
+jobs:
+  test-mswitchdirect:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-x264
+            mingw-w64-x86_64-x265
+            mingw-w64-x86_64-aom
+            mingw-w64-x86_64-srt
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-SDL2
+      
+      - name: Configure
+        run: |
+          ./configure \
+            --prefix="${PWD}/build" \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-nonfree \
+            --enable-libx264 \
+            --enable-libx265 \
+            --enable-libaom \
+            --enable-libsrt \
+            --enable-libfreetype \
+            --enable-libfontconfig \
+            --enable-libharfbuzz \
+            --enable-sdl2 \
+            --enable-stripping \
+            --disable-debug \
+            --extra-cflags="-O3" \
+            --pkg-config-flags=--static
+      
+      - name: Build
+        run: make -j$(nproc)
+      
+      - name: Install
+        run: make install
+      
+      - name: Test mswitchdirect appears in formats
+        shell: pwsh
+        run: |
+          Write-Host "Testing that mswitchdirect demuxer is available..."
+          
+          # Get ffmpeg formats output
+          $formats = & build/bin/ffmpeg.exe -formats 2>&1
+          
+          # Check if mswitchdirect is in the output
+          if ($formats -match "mswitchdirect") {
+            Write-Host "✅ SUCCESS: mswitchdirect demuxer found in formats list"
+            Write-Host ""
+            Write-Host "Formats output (filtered for mswitchdirect):"
+            $formats | Select-String -Pattern "mswitchdirect" | ForEach-Object { Write-Host $_.Line }
+          } else {
+            Write-Host "❌ FAILURE: mswitchdirect demuxer NOT found in formats list"
+            Write-Host ""
+            Write-Host "Full formats output:"
+            Write-Host $formats
+            exit 1
+          }
+      
+      - name: Test mswitchdirect can be used
+        shell: pwsh
+        run: |
+          Write-Host "Testing that mswitchdirect can be used as input format..."
+          
+          # Try to use mswitchdirect (should fail gracefully with usage error, not "unknown format")
+          $output = & build/bin/ffmpeg.exe -i "mswitchdirect://test" -f null - 2>&1
+          
+          # Check if error is about format not found vs usage/parameter error
+          if ($output -match "Invalid data found|No such file|Protocol not found|Unknown input format") {
+            Write-Host "❌ FAILURE: mswitchdirect format not recognized"
+            Write-Host "Error output:"
+            Write-Host $output
+            exit 1
+          } else {
+            Write-Host "✅ SUCCESS: mswitchdirect format is recognized (got expected usage/parameter error)"
+            Write-Host "This means the demuxer is properly registered."
+          }
+      
+      - name: Verify version info
+        shell: pwsh
+        run: |
+          Write-Host "FFmpeg version information:"
+          & build/bin/ffmpeg.exe -version
+          
+          Write-Host ""
+          Write-Host "Configuration:"
+          & build/bin/ffmpeg.exe -version 2>&1 | Select-String -Pattern "configuration"
+
