@@ -54,6 +54,7 @@
 #include "avformat.h"
 #include "demux.h"
 #include "url.h"
+#include "network.h"
 
 // SRT support
 #ifdef CONFIG_LIBSRT
@@ -1109,10 +1110,13 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         ff_mutex_unlock(&ctx->state_mutex);
         
         // Send an empty packet to signal flush (size=0, data=NULL)
-        av_init_packet(pkt);
         pkt->data = NULL;
         pkt->size = 0;
         pkt->stream_index = 0;
+        pkt->pts = AV_NOPTS_VALUE;
+        pkt->dts = AV_NOPTS_VALUE;
+        pkt->duration = 0;
+        pkt->flags = 0;
         
         av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] 🔄 Sending flush packet to decoder\n");
         return 0;
