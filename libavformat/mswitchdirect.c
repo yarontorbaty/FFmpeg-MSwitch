@@ -29,7 +29,6 @@
  * providing true seamless switching without subprocesses or UDP proxies.
  */
 
-#include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -50,6 +49,7 @@
 #include "libavutil/log.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
+#include "libavutil/thread.h"
 #include "libavutil/time.h"
 #include "avformat.h"
 #include "demux.h"
@@ -72,8 +72,8 @@ typedef struct PacketBuffer {
     int read_index;
     int write_index;
     int count;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    AVMutex mutex;
+    AVCond cond;
     int eof;
     int last_iframe_index;  // Index of the last I-frame in the buffer (-1 if none)
     int last_sps_pps_index; // Index where SPS/PPS starts before the I-frame (-1 if none)
@@ -117,7 +117,7 @@ typedef struct MSwitchSource {
 typedef struct SRTRelayClient {
     SRTSOCKET socket;
     int active;
-    pthread_mutex_t mutex;
+    AVMutex mutex;
 } SRTRelayClient;
 
 typedef struct SRTRelay {
@@ -132,7 +132,7 @@ typedef struct SRTRelay {
     pthread_t output_threads[MAX_SOURCES];  // Threads for each output port
     
     SRTRelayClient clients[MAX_SRT_CLIENTS];  // Connected clients
-    pthread_mutex_t clients_mutex;  // Protect client list
+    AVMutex clients_mutex;  // Protect client list
     
     char *original_urls[MAX_SOURCES];  // Original SRT URLs from user
     char *relay_urls[MAX_SOURCES];     // Modified URLs pointing to relay
@@ -145,7 +145,7 @@ typedef struct MSwitchDirectContext {
     int num_sources;
     MSwitchSource sources[MAX_SOURCES];
     int active_source_index;
-    pthread_mutex_t state_mutex;
+    AVMutex state_mutex;
     
     int control_port;
     int control_socket;
@@ -207,8 +207,8 @@ void mswitchdirect_cli_status(void);
 static void packet_buffer_init(PacketBuffer *buf)
 {
     memset(buf, 0, sizeof(*buf));
-    pthread_mutex_init(&buf->mutex, NULL);
-    pthread_cond_init(&buf->cond, NULL);
+    ff_mutex_init(&buf->mutex, NULL);
+    ff_cond_init(&buf->cond, NULL);
     buf->last_iframe_index = -1;
     buf->last_sps_pps_index = -1;
     buf->has_iframe = 0;
@@ -216,24 +216,24 @@ static void packet_buffer_init(PacketBuffer *buf)
 
 static void packet_buffer_destroy(PacketBuffer *buf)
 {
-    pthread_mutex_lock(&buf->mutex);
+    ff_mutex_lock(&buf->mutex);
     for (int i = 0; i < buf->count; i++) {
         int idx = (buf->read_index + i) % PACKET_BUFFER_SIZE;
         if (buf->packets[idx]) {
             av_packet_free(&buf->packets[idx]);
         }
     }
-    pthread_mutex_unlock(&buf->mutex);
-    pthread_mutex_destroy(&buf->mutex);
-    pthread_cond_destroy(&buf->cond);
+    ff_mutex_unlock(&buf->mutex);
+    ff_mutex_destroy(&buf->mutex);
+    ff_cond_destroy(&buf->cond);
 }
 
 static int packet_buffer_put(PacketBuffer *buf, AVPacket *pkt)
 {
-    pthread_mutex_lock(&buf->mutex);
+    ff_mutex_lock(&buf->mutex);
     
     if (buf->eof) {
-        pthread_mutex_unlock(&buf->mutex);
+        ff_mutex_unlock(&buf->mutex);
         return -1;
     }
     
@@ -310,23 +310,23 @@ static int packet_buffer_put(PacketBuffer *buf, AVPacket *pkt)
     buf->write_index = (buf->write_index + 1) % PACKET_BUFFER_SIZE;
     buf->count++;
     
-    pthread_cond_signal(&buf->cond);
-    pthread_mutex_unlock(&buf->mutex);
+    ff_cond_signal(&buf->cond);
+    ff_mutex_unlock(&buf->mutex);
     
     return 0;
 }
 
 static int packet_buffer_get(PacketBuffer *buf, AVPacket *pkt)
 {
-    pthread_mutex_lock(&buf->mutex);
+    ff_mutex_lock(&buf->mutex);
     
     // Wait if buffer is empty
     while (buf->count == 0 && !buf->eof) {
-        pthread_cond_wait(&buf->cond, &buf->mutex);
+        ff_cond_wait(&buf->cond, &buf->mutex);
     }
     
     if (buf->count == 0 && buf->eof) {
-        pthread_mutex_unlock(&buf->mutex);
+        ff_mutex_unlock(&buf->mutex);
         return AVERROR_EOF;
     }
     
@@ -336,8 +336,8 @@ static int packet_buffer_get(PacketBuffer *buf, AVPacket *pkt)
     buf->read_index = (buf->read_index + 1) % PACKET_BUFFER_SIZE;
     buf->count--;
     
-    pthread_cond_signal(&buf->cond);
-    pthread_mutex_unlock(&buf->mutex);
+    ff_cond_signal(&buf->cond);
+    ff_mutex_unlock(&buf->mutex);
     
     return 0;
 }
@@ -345,11 +345,11 @@ static int packet_buffer_get(PacketBuffer *buf, AVPacket *pkt)
 // Non-blocking version for checking if packets are available
 static int packet_buffer_try_get(PacketBuffer *buf, AVPacket *pkt)
 {
-    pthread_mutex_lock(&buf->mutex);
+    ff_mutex_lock(&buf->mutex);
     
     // Don't wait, just check if buffer has packets
     if (buf->count == 0) {
-        pthread_mutex_unlock(&buf->mutex);
+        ff_mutex_unlock(&buf->mutex);
         return AVERROR(EAGAIN);  // No packets available
     }
     
@@ -359,8 +359,8 @@ static int packet_buffer_try_get(PacketBuffer *buf, AVPacket *pkt)
     buf->read_index = (buf->read_index + 1) % PACKET_BUFFER_SIZE;
     buf->count--;
     
-    pthread_cond_signal(&buf->cond);
-    pthread_mutex_unlock(&buf->mutex);
+    ff_cond_signal(&buf->cond);
+    ff_mutex_unlock(&buf->mutex);
     
     return 0;
 }
@@ -370,7 +370,7 @@ static int packet_buffer_try_get(PacketBuffer *buf, AVPacket *pkt)
 // Rewinds to SPS/PPS if available to ensure decoder has parameter sets
 static int packet_buffer_get_from_iframe(PacketBuffer *buf, AVPacket *pkt)
 {
-    pthread_mutex_lock(&buf->mutex);
+    ff_mutex_lock(&buf->mutex);
     
     // If we have an I-frame in the buffer, rewind to SPS/PPS or I-frame
     if (buf->has_iframe && buf->last_iframe_index >= 0) {
@@ -398,11 +398,11 @@ static int packet_buffer_get_from_iframe(PacketBuffer *buf, AVPacket *pkt)
     
     // Wait if buffer is empty
     while (buf->count == 0 && !buf->eof) {
-        pthread_cond_wait(&buf->cond, &buf->mutex);
+        ff_cond_wait(&buf->cond, &buf->mutex);
     }
     
     if (buf->eof && buf->count == 0) {
-        pthread_mutex_unlock(&buf->mutex);
+        ff_mutex_unlock(&buf->mutex);
         return AVERROR_EOF;
     }
     
@@ -412,7 +412,7 @@ static int packet_buffer_get_from_iframe(PacketBuffer *buf, AVPacket *pkt)
     buf->read_index = (buf->read_index + 1) % PACKET_BUFFER_SIZE;
     buf->count--;
     
-    pthread_mutex_unlock(&buf->mutex);
+    ff_mutex_unlock(&buf->mutex);
     
     return 0;
 }
@@ -551,9 +551,9 @@ handle_error:
                         source->reconnect_start_time = 0;  // Reset reconnection timer
                         
                         // Clear EOF flag to allow reading again
-                        pthread_mutex_lock(&source->buffer.mutex);
+                        ff_mutex_lock(&source->buffer.mutex);
                         source->buffer.eof = 0;
-                        pthread_mutex_unlock(&source->buffer.mutex);
+                        ff_mutex_unlock(&source->buffer.mutex);
                         
                         av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Reader] Source %d: Ready to read packets again\n", 
                                source->source_index);
@@ -635,10 +635,10 @@ handle_error:
     }
     
     av_packet_free(&pkt);
-    pthread_mutex_lock(&source->buffer.mutex);
+    ff_mutex_lock(&source->buffer.mutex);
     source->buffer.eof = 1;
-    pthread_cond_broadcast(&source->buffer.cond);
-    pthread_mutex_unlock(&source->buffer.mutex);
+    ff_cond_broadcast(&source->buffer.cond);
+    ff_mutex_unlock(&source->buffer.mutex);
     
     return NULL;
 }
@@ -672,9 +672,9 @@ static void *health_monitor_thread(void *arg)
         }
         
         // Get active source index
-        pthread_mutex_lock(&ctx->state_mutex);
+        ff_mutex_lock(&ctx->state_mutex);
         int active = ctx->active_source_index;
-        pthread_mutex_unlock(&ctx->state_mutex);
+        ff_mutex_unlock(&ctx->state_mutex);
         
         // Check health of all sources
         for (i = 0; i < ctx->num_sources; i++) {
@@ -720,9 +720,9 @@ static void *health_monitor_thread(void *arg)
                 }
             } else {
                 // Inactive source: check both buffer and recent packet activity
-                pthread_mutex_lock(&src->buffer.mutex);
+                ff_mutex_lock(&src->buffer.mutex);
                 int buffer_count = src->buffer.count;
-                pthread_mutex_unlock(&src->buffer.mutex);
+                ff_mutex_unlock(&src->buffer.mutex);
                 
                 // Consider healthy if either:
                 // 1. Buffer has packets (ready for immediate failover), OR
@@ -810,14 +810,14 @@ static void *control_server_thread(void *arg)
             }
             
             if (new_source >= 0 && new_source < ctx->num_sources) {
-                pthread_mutex_lock(&ctx->state_mutex);
+                ff_mutex_lock(&ctx->state_mutex);
                 
                 // Check if target source is healthy
                 int is_healthy = ctx->sources[new_source].is_healthy;
                 int old_source = ctx->active_source_index;
                 
                 if (!is_healthy) {
-                    pthread_mutex_unlock(&ctx->state_mutex);
+                    ff_mutex_unlock(&ctx->state_mutex);
                     av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct HTTP] Cannot switch to source %d - source is UNHEALTHY\n",
                            new_source);
                     
@@ -848,7 +848,7 @@ static void *control_server_thread(void *arg)
                     av_log(NULL, AV_LOG_INFO, "[MSwitch Direct HTTP] Manual switch %d → %d (immediate)\n",
                            old_source, new_source);
                 }
-                pthread_mutex_unlock(&ctx->state_mutex);
+                ff_mutex_unlock(&ctx->state_mutex);
                 
                 snprintf(response, sizeof(response),
                          "HTTP/1.1 200 OK\r\n"
@@ -1044,7 +1044,7 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     ctx->control_running = 1;
     pthread_create(&ctx->control_thread, NULL, control_server_thread, ctx);
     
-    pthread_mutex_init(&ctx->state_mutex, NULL);
+    ff_mutex_init(&ctx->state_mutex, NULL);
     ctx->active_source_index = 0;
     
     // Initialize timestamp normalization
@@ -1098,7 +1098,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
     int pending_switch;
     int is_keyframe;
     
-    pthread_mutex_lock(&ctx->state_mutex);
+    ff_mutex_lock(&ctx->state_mutex);
     active_source = ctx->active_source_index;
     pending_switch = ctx->pending_switch_to;
     
@@ -1106,7 +1106,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
     if (ctx->need_decoder_flush) {
         ctx->need_decoder_flush = 0;
         ctx->need_sps_pps_injection = 1;  // After flush, we need to inject SPS/PPS
-        pthread_mutex_unlock(&ctx->state_mutex);
+        ff_mutex_unlock(&ctx->state_mutex);
         
         // Send an empty packet to signal flush (size=0, data=NULL)
         av_init_packet(pkt);
@@ -1124,7 +1124,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         
         // Check if we have extradata for this source
         if (ctx->sources[active_source].has_sps && ctx->sources[active_source].cached_sps) {
-            pthread_mutex_unlock(&ctx->state_mutex);
+            ff_mutex_unlock(&ctx->state_mutex);
             
             AVPacket *extradata_pkt = ctx->sources[active_source].cached_sps;
             
@@ -1144,7 +1144,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         } else {
             av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⚠️  No SPS/PPS extradata available for source %d, skipping injection\n",
                    active_source);
-            pthread_mutex_unlock(&ctx->state_mutex);
+            ff_mutex_unlock(&ctx->state_mutex);
         }
     }
     
@@ -1152,7 +1152,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
     if (ctx->pending_first_packet) {
         AVPacket *cached = ctx->pending_first_packet;
         ctx->pending_first_packet = NULL;
-        pthread_mutex_unlock(&ctx->state_mutex);
+        ff_mutex_unlock(&ctx->state_mutex);
         
         av_packet_ref(pkt, cached);
         av_packet_free(&cached);
@@ -1164,7 +1164,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         goto normalize_timestamps;
     }
     
-    pthread_mutex_unlock(&ctx->state_mutex);
+    ff_mutex_unlock(&ctx->state_mutex);
     
     // Skip the old pending switch logic - we now do immediate switches below
     // If there's a pending switch, try to read from the new source
@@ -1185,9 +1185,9 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                        active_source, pending_switch);
                 
                 // Force switch by clearing wait_for_iframe
-                pthread_mutex_lock(&ctx->state_mutex);
+                ff_mutex_lock(&ctx->state_mutex);
                 ctx->wait_for_iframe = 0;
-                pthread_mutex_unlock(&ctx->state_mutex);
+                ff_mutex_unlock(&ctx->state_mutex);
                 
                 // Try to get packet from pending source, starting from last I-frame if available
                 ret = packet_buffer_get_from_iframe(&ctx->sources[pending_switch].buffer, pkt);
@@ -1196,7 +1196,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 }
                 
                 // Execute the switch - we now have a packet starting from an I-frame
-                pthread_mutex_lock(&ctx->state_mutex);
+                ff_mutex_lock(&ctx->state_mutex);
                 int old_source = ctx->active_source_index;
                 ctx->active_source_index = pending_switch;
                 ctx->pending_switch_to = -1;
@@ -1216,7 +1216,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 av_packet_unref(ctx->pending_first_packet);
                 av_packet_ref(ctx->pending_first_packet, pkt);
                 
-                pthread_mutex_unlock(&ctx->state_mutex);
+                ff_mutex_unlock(&ctx->state_mutex);
                 
                 av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ✅ SWITCHED: Source %d → %d (forced from buffer I-frame) (flags=0x%x, will flush decoder then output I-frame)\n",
                        old_source, pending_switch, pkt->flags);
@@ -1264,7 +1264,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
             // Only switch on I-frames for clean decoder recovery
             if (is_keyframe) {
                 // Execute the switch
-                pthread_mutex_lock(&ctx->state_mutex);
+                ff_mutex_lock(&ctx->state_mutex);
                 int old_source = ctx->active_source_index;
                 ctx->active_source_index = pending_switch;
                 ctx->pending_switch_to = -1;
@@ -1286,7 +1286,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 av_packet_unref(ctx->pending_first_packet);
                 av_packet_ref(ctx->pending_first_packet, pkt);
                 
-                pthread_mutex_unlock(&ctx->state_mutex);
+                ff_mutex_unlock(&ctx->state_mutex);
                 
                 av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ✅ SWITCHED: Source %d → %d (I-frame) (flags=0x%x, will flush decoder then output I-frame)\n",
                        old_source, pending_switch, pkt->flags);
@@ -1333,9 +1333,9 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         // This ensures immediate failover without draining stale buffer
         MSwitchSource *active = &ctx->sources[active_source];
         
-        pthread_mutex_lock(&ctx->state_mutex);
+        ff_mutex_lock(&ctx->state_mutex);
         int is_unhealthy = !active->is_healthy;
-        pthread_mutex_unlock(&ctx->state_mutex);
+        ff_mutex_unlock(&ctx->state_mutex);
         
         if (is_unhealthy && ctx->auto_failover_enabled) {
             // Active source is unhealthy - find a healthy source and switch immediately
@@ -1344,7 +1344,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
             
             // Find best healthy source
             int best_source = -1;
-            pthread_mutex_lock(&ctx->state_mutex);
+            ff_mutex_lock(&ctx->state_mutex);
             for (int i = 0; i < ctx->num_sources; i++) {
                 if (i != active_source && ctx->sources[i].is_healthy) {
                     best_source = i;
@@ -1362,7 +1362,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 // DO NOT reset timestamps for auto-failover - keep continuity
                 // The timestamp normalization code will adjust the offset automatically
                 
-                pthread_mutex_unlock(&ctx->state_mutex);
+                ff_mutex_unlock(&ctx->state_mutex);
                 
                 av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⚡ AUTO-FAILOVER: Switched from source %d to %d (immediate, preserving timestamps)\n",
                        old_source, best_source);
@@ -1371,7 +1371,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 av_usleep(10000);  // Brief sleep to let new source buffer fill
                 return AVERROR(EAGAIN);
             } else {
-                pthread_mutex_unlock(&ctx->state_mutex);
+                ff_mutex_unlock(&ctx->state_mutex);
                 av_log(s, AV_LOG_ERROR, "[MSwitch Direct] No healthy sources available!\n");
                 av_usleep(100000);
                 return AVERROR(EAGAIN);
@@ -1437,18 +1437,18 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                     
                     if (best_source >= 0) {
                         // Set pending switch
-                        pthread_mutex_lock(&ctx->state_mutex);
+                        ff_mutex_lock(&ctx->state_mutex);
                         if (ctx->pending_switch_to < 0) {  // No pending switch already
                             ctx->pending_switch_to = best_source;
                             ctx->wait_for_iframe = 1;
                             ctx->pending_switch_time = av_gettime() / 1000;
-                            pthread_mutex_unlock(&ctx->state_mutex);
+                            ff_mutex_unlock(&ctx->state_mutex);
                             av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 🔄 IMMEDIATE FAILOVER: Source %d → %d\n",
                                    active_source, best_source);
                             // Retry read_packet, which will now hit the pending_switch path
                             return AVERROR(EAGAIN);
                         }
-                        pthread_mutex_unlock(&ctx->state_mutex);
+                        ff_mutex_unlock(&ctx->state_mutex);
                     }
                     
                     // No healthy source found, sleep and retry
@@ -1546,11 +1546,11 @@ int mswitchdirect_cli_switch(int source_index)
         return AVERROR(EINVAL);
     }
     
-    pthread_mutex_lock(&global_mswitchdirect_ctx->state_mutex);
+    ff_mutex_lock(&global_mswitchdirect_ctx->state_mutex);
     int old_index = global_mswitchdirect_ctx->active_source_index;
     global_mswitchdirect_ctx->active_source_index = source_index;
     global_mswitchdirect_ctx->last_manual_switch_time = av_gettime() / 1000;  // Record manual switch time
-    pthread_mutex_unlock(&global_mswitchdirect_ctx->state_mutex);
+    ff_mutex_unlock(&global_mswitchdirect_ctx->state_mutex);
     
     av_log(NULL, AV_LOG_INFO, "[MSwitch Direct CLI] ⚡ Switched from source %d to %d (manual)\n",
            old_index, source_index);
@@ -1568,10 +1568,10 @@ void mswitchdirect_cli_status(void)
     
     MSwitchDirectContext *ctx = global_mswitchdirect_ctx;
     
-    pthread_mutex_lock(&ctx->state_mutex);
+    ff_mutex_lock(&ctx->state_mutex);
     int active = ctx->active_source_index;
     int total = ctx->num_sources;
-    pthread_mutex_unlock(&ctx->state_mutex);
+    ff_mutex_unlock(&ctx->state_mutex);
     
     av_log(NULL, AV_LOG_INFO, "[MSwitch Direct] ════════════════════════════════\n");
     av_log(NULL, AV_LOG_INFO, "[MSwitch Direct] Active source: %d / %d\n", active, total - 1);
@@ -1583,9 +1583,9 @@ void mswitchdirect_cli_status(void)
     int64_t current_time = av_gettime() / 1000;
     for (int i = 0; i < total; i++) {
         MSwitchSource *src = &ctx->sources[i];
-        pthread_mutex_lock(&src->buffer.mutex);
+        ff_mutex_lock(&src->buffer.mutex);
         int count = src->buffer.count;
-        pthread_mutex_unlock(&src->buffer.mutex);
+        ff_mutex_unlock(&src->buffer.mutex);
         
         int64_t time_since_packet = current_time - src->last_packet_time;
         const char *status_icon = src->is_healthy ? "✅" : "❌";
@@ -1631,10 +1631,10 @@ static int mswitchdirect_read_close(AVFormatContext *s)
     for (i = 0; i < ctx->num_sources; i++) {
         MSwitchSource *source = &ctx->sources[i];
         source->thread_running = 0;
-        pthread_mutex_lock(&source->buffer.mutex);
+        ff_mutex_lock(&source->buffer.mutex);
         source->buffer.eof = 1;
-        pthread_cond_broadcast(&source->buffer.cond);
-        pthread_mutex_unlock(&source->buffer.mutex);
+        ff_cond_broadcast(&source->buffer.cond);
+        ff_mutex_unlock(&source->buffer.mutex);
         
         if (source->reader_thread) {
             pthread_join(source->reader_thread, NULL);
@@ -1662,7 +1662,7 @@ static int mswitchdirect_read_close(AVFormatContext *s)
         av_freep(&source->url);
     }
     
-    pthread_mutex_destroy(&ctx->state_mutex);
+    ff_mutex_destroy(&ctx->state_mutex);
     
     return 0;
 }
