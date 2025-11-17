@@ -74,15 +74,49 @@ jobs:
           echo "Checking demuxer_list.c..."
           if grep -q "ff_mswitchdirect_demuxer" libavformat/demuxer_list.c; then
             echo "✅ ff_mswitchdirect_demuxer found in demuxer_list.c"
+            echo "Showing context around mswitchdirect in demuxer_list.c:"
+            grep -B 2 -A 2 "ff_mswitchdirect_demuxer" libavformat/demuxer_list.c
           else
             echo "❌ ff_mswitchdirect_demuxer NOT found in demuxer_list.c"
-            echo "First 20 lines of demuxer_list.c:"
-            head -20 libavformat/demuxer_list.c
+            echo "First 50 lines of demuxer_list.c:"
+            head -50 libavformat/demuxer_list.c
+            echo "..."
+            echo "Last 20 lines of demuxer_list.c:"
+            tail -20 libavformat/demuxer_list.c
+            exit 1
+          fi
+          
+          echo "Checking if allformats.c includes demuxer_list.c..."
+          if grep -q '#include "libavformat/demuxer_list.c"' libavformat/allformats.c; then
+            echo "✅ allformats.c includes demuxer_list.c"
+          else
+            echo "❌ allformats.c does NOT include demuxer_list.c"
             exit 1
           fi
       
       - name: Build
         run: make -j$(nproc)
+      
+      - name: Verify symbol in library
+        shell: msys2 {0}
+        run: |
+          echo "Checking if ff_mswitchdirect_demuxer symbol exists in libavformat.a..."
+          if nm libavformat/libavformat.a 2>/dev/null | grep -q "ff_mswitchdirect_demuxer"; then
+            echo "✅ ff_mswitchdirect_demuxer symbol found in libavformat.a"
+            nm libavformat/libavformat.a | grep "ff_mswitchdirect_demuxer"
+          else
+            echo "❌ ff_mswitchdirect_demuxer symbol NOT found in libavformat.a"
+            echo "Checking if mswitchdirect.o is in the archive:"
+            ar -t libavformat/libavformat.a | grep mswitchdirect || echo "mswitchdirect.o not found in archive"
+            exit 1
+          fi
+          
+          echo "Checking if symbol exists in final ffmpeg binary..."
+          if nm build/bin/ffmpeg.exe 2>/dev/null | grep -q "ff_mswitchdirect_demuxer"; then
+            echo "✅ ff_mswitchdirect_demuxer symbol found in ffmpeg.exe"
+          else
+            echo "⚠️  ff_mswitchdirect_demuxer symbol NOT found in ffmpeg.exe (might be stripped or unused)"
+          fi
       
       - name: Install
         run: make install
