@@ -126,8 +126,23 @@ jobs:
         run: |
           Write-Host "Testing that mswitchdirect demuxer is available..."
           
+          # Check if ffmpeg exists and is executable
+          if (Test-Path build/bin/ffmpeg.exe) {
+            Write-Host "✅ ffmpeg.exe exists"
+          } else {
+            Write-Host "❌ ffmpeg.exe not found"
+            exit 1
+          }
+          
+          # Get ffmpeg version first
+          Write-Host "FFmpeg version:"
+          & build/bin/ffmpeg.exe -version 2>&1 | Select-Object -First 3
+          
           # Get ffmpeg formats output
-          $formats = & build/bin/ffmpeg.exe -formats 2>&1
+          Write-Host "Getting formats list..."
+          $formats = & build/bin/ffmpeg.exe -formats 2>&1 | Out-String
+          
+          Write-Host "Formats output length: $($formats.Length) characters"
           
           # Check if mswitchdirect is in the output
           if ($formats -match "mswitchdirect") {
@@ -138,8 +153,11 @@ jobs:
           } else {
             Write-Host "❌ FAILURE: mswitchdirect demuxer NOT found in formats list"
             Write-Host ""
-            Write-Host "Full formats output:"
-            Write-Host $formats
+            Write-Host "Full formats output (first 50 lines):"
+            $formats -split "`n" | Select-Object -First 50 | ForEach-Object { Write-Host $_ }
+            Write-Host ""
+            Write-Host "Searching for 'mswitch' or 'switch' in output:"
+            $formats | Select-String -Pattern "switch" | ForEach-Object { Write-Host $_.Line }
             exit 1
           }
       
