@@ -28,6 +28,12 @@ cleanup() {
 
 trap cleanup EXIT
 
+# Kill any stray processes from previous runs
+echo "Cleaning up any previous test processes..."
+pkill -f "ffmpeg.*srt://127.0.0.1:900" 2>/dev/null || true
+pkill -f "ffmpeg.*mswitchdirect" 2>/dev/null || true
+sleep 2
+
 # Test configuration
 MULTICAST_ADDR="239.1.1.1"
 MULTICAST_PORT="5000"
@@ -35,6 +41,17 @@ RECEIVER0_PORT=9000
 RECEIVER1_PORT=9001
 HEALTH_TIMEOUT=5000  # 5 seconds
 LOG_FILE="test_msw_srt_failover_visual.log"
+
+# Wait for ports to be available
+echo "Checking if ports ${RECEIVER0_PORT} and ${RECEIVER1_PORT} are available..."
+for i in {1..10}; do
+    if ! lsof -nP -iTCP:${RECEIVER0_PORT},${RECEIVER1_PORT} >/dev/null 2>&1; then
+        echo "✅ Ports are available"
+        break
+    fi
+    echo "   Waiting for ports to be released... (attempt $i/10)"
+    sleep 2
+done
 
 echo "📝 Test configuration:"
 echo "  • Receiver 0 listening on: srt://0.0.0.0:${RECEIVER0_PORT} (will receive from Source 0 - BLUE)"
