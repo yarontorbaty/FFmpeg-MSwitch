@@ -1361,7 +1361,15 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 // This preserves timestamp continuity and allows freeze-frame to work
                 int old_source = ctx->active_source_index;
                 ctx->active_source_index = best_source;
-                ctx->last_manual_switch_time = av_gettime() / 1000;  // Record switch time for grace period
+                
+                // Update last_packet_time for the newly active source to current time
+                // This prevents the health monitor from seeing stale timestamps
+                int64_t current_time = av_gettime() / 1000;
+                ctx->sources[best_source].last_packet_time = current_time;
+                
+                // DO NOT set last_manual_switch_time for auto-failover
+                // The grace period is only for manual switches via HTTP/keyboard
+                // Auto-failover should be immediate since the target is already healthy
                 
                 // DO NOT reset timestamps for auto-failover - keep continuity
                 // The timestamp normalization code will adjust the offset automatically
