@@ -27,7 +27,7 @@ echo "Starting receiver..."
 ./ffmpeg -hide_banner -loglevel info \
   -f mswitchdirect \
   -msw_sources "srt://0.0.0.0:9000?mode=listener,srt://0.0.0.0:9001?mode=listener" \
-  -msw_source_timeout 100 \
+  -msw_source_timeout 500 \
   -msw_auto_failover 1 \
   -i dummy \
   -c copy \
