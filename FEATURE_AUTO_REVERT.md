@@ -2,7 +2,7 @@
 
 **Issue**: #8  
 **Branch**: `feature/auto-revert-preferred-source`  
-**Status**: 🟡 In Progress
+**Status**: 🟢 Phase 1-2 Complete, Ready for Testing
 
 ---
 
@@ -12,81 +12,42 @@ Add optional auto-revert functionality that automatically switches back to highe
 
 ## 📋 Implementation Checklist
 
-### Phase 1: Core Logic ✅ Ready to Implement
+### Phase 1: Core Logic ✅ COMPLETE
 
-- [ ] **Add new context fields** (`libavformat/mswitchdirect.c`)
-  ```c
-  // Auto-revert configuration
-  int auto_revert_enabled;           // Enable auto-revert to preferred source
-  int revert_delay_ms;               // Delay before reverting (default: 5000ms)
-  int revert_stability_time_ms;      // Source must be stable before revert (default: 3000ms)
-  int64_t *source_healthy_since;     // Track when each source became healthy
-  int64_t last_revert_time;          // Last revert time (for cooldown)
-  int revert_cooldown_ms;            // Cooldown between reverts (default: 10000ms)
-  ```
+- [x] **Add new context fields** (`libavformat/mswitchdirect.c`)
+  - Added auto_revert_enabled, revert_delay_ms, revert_stability_time_ms
+  - Added source_healthy_since array for tracking recovery time
+  - Added last_revert_time and revert_cooldown_ms for anti-thrashing
 
-- [ ] **Add command-line options** (`mswitchdirect_options` array)
-  ```c
-  { "msw_auto_revert", "Enable auto-revert to preferred source", 
-    OFFSET(auto_revert_enabled), AV_OPT_TYPE_BOOL, {.i64=0}, 0, 1, AV_OPT_FLAG_DECODING_PARAM },
-  { "msw_revert_delay", "Delay before reverting to preferred source (ms)", 
-    OFFSET(revert_delay_ms), AV_OPT_TYPE_INT, {.i64=5000}, 1000, 60000, AV_OPT_FLAG_DECODING_PARAM },
-  { "msw_revert_stability_time", "Source must be stable before revert (ms)", 
-    OFFSET(revert_stability_time_ms), AV_OPT_TYPE_INT, {.i64=3000}, 1000, 30000, AV_OPT_FLAG_DECODING_PARAM },
-  ```
+- [x] **Add command-line options** (`mswitchdirect_options` array)
+  - msw_auto_revert (default: 0 - disabled for backward compatibility)
+  - msw_revert_delay (default: 5000ms)
+  - msw_revert_stability_time (default: 3000ms)
 
-- [ ] **Initialize new fields** (`mswitchdirect_read_header`)
-  ```c
-  ctx->auto_revert_enabled = 0;  // Disabled by default (backward compatible)
-  ctx->revert_delay_ms = 5000;
-  ctx->revert_stability_time_ms = 3000;
-  ctx->revert_cooldown_ms = 10000;
-  ctx->last_revert_time = 0;
-  ctx->source_healthy_since = av_mallocz(ctx->num_sources * sizeof(int64_t));
-  ```
+- [x] **Initialize new fields** (`mswitchdirect_read_header`)
+  - Allocate and initialize source_healthy_since array
+  - Set revert_cooldown_ms to 10000ms
+  - Added logging for auto-revert settings
 
-### Phase 2: Selection Logic 🔄 Priority-Based
+### Phase 2: Selection Logic ✅ COMPLETE
 
-- [ ] **Modify health monitor** (`health_monitor_thread`)
-  - Track when each source becomes healthy
-  - Update `source_healthy_since` timestamps
-  - Check for revert conditions
+- [x] **Modify health monitor** (`health_monitor_thread`)
+  - Track when each source becomes healthy (source_healthy_since)
+  - Update timestamps when health status changes
+  - Added logging for revert readiness and blocking conditions
 
-- [ ] **Update best source selection** (both locations)
-  - **Location 1**: `health_monitor_thread` (~line 764)
-  - **Location 2**: `read_packet` auto-failover (~line 1365)
-  
-  ```c
-  // Priority-based selection (lowest index = highest priority)
-  int best_source = -1;
-  for (int i = 0; i < ctx->num_sources; i++) {
-      if (ctx->sources[i].is_healthy) {
-          if (best_source < 0 || i < best_source) {
-              best_source = i;  // Prefer lower index (higher priority)
-          }
-      }
-  }
-  ```
+- [x] **Update best source selection** (both locations)
+  - **Location 1**: health_monitor_thread (~line 781) ✅
+  - **Location 2**: read_packet auto-failover (~line 1433) ✅
+  - Implemented priority-based selection (lowest index = highest priority)
 
-- [ ] **Add revert logic** (`read_packet`)
-  ```c
-  // Check for auto-revert opportunity
-  if (ctx->auto_revert_enabled && best_source < active_source) {
-      // Higher priority source is available
-      int64_t current_time = av_gettime() / 1000;
-      int64_t time_since_healthy = current_time - ctx->source_healthy_since[best_source];
-      int64_t time_since_last_revert = current_time - ctx->last_revert_time;
-      
-      if (time_since_healthy >= ctx->revert_stability_time_ms &&
-          time_since_last_revert >= ctx->revert_cooldown_ms) {
-          // Perform auto-revert
-          ctx->last_revert_time = current_time;
-          // ... switch to best_source
-      }
-  }
-  ```
+- [x] **Add revert logic** (`read_packet`)
+  - Check for higher-priority healthy sources
+  - Verify stability time + revert delay
+  - Check cooldown period
+  - Perform auto-revert switch when conditions met
 
-### Phase 3: Anti-Thrashing Protection 🛡️
+### Phase 3: Anti-Thrashing Protection ✅ COMPLETE
 
 - [ ] **Track source recovery time**
   - Update `source_healthy_since` when source becomes healthy
