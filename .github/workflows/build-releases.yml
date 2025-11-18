@@ -336,11 +336,20 @@ jobs:
           PACKAGE_NAME="ffmpeg-mswitch-windows-x86_64-${VERSION}"
           mkdir -p "releases/${PACKAGE_NAME}"
           
+          # Copy executables
           cp build/bin/ffmpeg.exe "releases/${PACKAGE_NAME}/"
           cp build/bin/ffprobe.exe "releases/${PACKAGE_NAME}/"
           [ -f build/bin/ffplay.exe ] && cp build/bin/ffplay.exe "releases/${PACKAGE_NAME}/" || echo "ffplay not built"
           [ -f build/bin/srt_relay.exe ] && cp build/bin/srt_relay.exe "releases/${PACKAGE_NAME}/" || echo "srt_relay not built"
           [ -f build/bin/mswitch_srt ] && cp build/bin/mswitch_srt "releases/${PACKAGE_NAME}/" || echo "mswitch_srt not found"
+          
+          # Copy runtime DLLs for PowerShell compatibility
+          echo "Copying runtime DLLs for PowerShell compatibility..."
+          cp /mingw64/bin/libgcc_s_seh-1.dll "releases/${PACKAGE_NAME}/"
+          cp /mingw64/bin/libstdc++-6.dll "releases/${PACKAGE_NAME}/"
+          cp /mingw64/bin/libwinpthread-1.dll "releases/${PACKAGE_NAME}/"
+          
+          # Copy documentation
           cp README.md "releases/${PACKAGE_NAME}/"
           cp LICENSE.md "releases/${PACKAGE_NAME}/"
           [ -f tools/srt_relay/README.md ] && cp tools/srt_relay/README.md "releases/${PACKAGE_NAME}/SRT_RELAY_README.md" || true
@@ -349,6 +358,7 @@ jobs:
           echo "Version: ${VERSION}" >> "releases/${PACKAGE_NAME}/VERSION.txt"
           echo "Built: $(date)" >> "releases/${PACKAGE_NAME}/VERSION.txt"
           echo "Platform: Windows x86_64" >> "releases/${PACKAGE_NAME}/VERSION.txt"
+          echo "Note: Runtime DLLs included for PowerShell compatibility" >> "releases/${PACKAGE_NAME}/VERSION.txt"
           
           # Save package name for next step
           echo "${PACKAGE_NAME}" > releases/package_name.txt

@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - fix/windows-mswitchdirect-threading
+      - fix/windows-powershell-output
       - master
   pull_request:
     branches:
       - master
       - fix/windows-mswitchdirect-threading
+      - fix/windows-powershell-output
 
 jobs:
   test-mswitchdirect:
@@ -121,6 +123,19 @@ jobs:
       - name: Install
         run: make install
       
+      - name: Copy runtime DLLs for PowerShell compatibility
+        shell: msys2 {0}
+        run: |
+          echo "Copying MSYS2 runtime DLLs to build/bin..."
+          # Copy essential MSYS2 runtime DLLs needed for PowerShell
+          cp /mingw64/bin/libgcc_s_seh-1.dll build/bin/
+          cp /mingw64/bin/libstdc++-6.dll build/bin/
+          cp /mingw64/bin/libwinpthread-1.dll build/bin/
+          
+          # List what we copied
+          echo "DLLs copied:"
+          ls -lh build/bin/*.dll
+      
       - name: Test mswitchdirect appears in formats
         shell: msys2 {0}
         run: |
@@ -193,6 +208,39 @@ jobs:
           echo "FFmpeg version information:"
           ./build/bin/ffmpeg.exe -version
       
+      - name: Test PowerShell output compatibility
+        shell: pwsh
+        run: |
+          Write-Host "Testing ffmpeg.exe output in PowerShell (Issue #4)..."
+          Write-Host ""
+          
+          # Test 1: Basic version output
+          $versionOutput = & "./build/bin/ffmpeg.exe" -version 2>&1 | Out-String
+          if ($versionOutput) {
+            Write-Host "✅ SUCCESS: ffmpeg.exe produces version output in PowerShell"
+            Write-Host "First line: $($versionOutput.Split([Environment]::NewLine)[0])"
+          } else {
+            Write-Host "❌ FAILURE: ffmpeg.exe produces no output in PowerShell"
+            exit 1
+          }
+          
+          Write-Host ""
+          
+          # Test 2: Formats list output
+          $formatsOutput = & "./build/bin/ffmpeg.exe" -formats 2>&1 | Out-String
+          if ($formatsOutput -match "mswitchdirect") {
+            Write-Host "✅ SUCCESS: ffmpeg.exe -formats works and shows mswitchdirect"
+          } elseif ($formatsOutput) {
+            Write-Host "⚠️  WARNING: ffmpeg.exe -formats produces output but mswitchdirect not found"
+            Write-Host "Output length: $($formatsOutput.Length) characters"
+          } else {
+            Write-Host "❌ FAILURE: ffmpeg.exe -formats produces no output"
+            exit 1
+          }
+          
+          Write-Host ""
+          Write-Host "PowerShell compatibility test passed!"
+      
       - name: Upload Windows build artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -202,5 +250,6 @@ jobs:
             build/bin/ffmpeg.exe
             build/bin/ffplay.exe
             build/bin/ffprobe.exe
+            build/bin/*.dll
           retention-days: 7
 
