@@ -22,6 +22,7 @@ cleanup() {
     echo "🧹 Cleaning up..."
     pkill -f "ffmpeg.*srt://127.0.0.1:900" 2>/dev/null || true
     pkill -f "ffmpeg.*mswitchdirect" 2>/dev/null || true
+    rm -f source0.log source1.log 2>/dev/null || true
     sleep 2
 }
 
@@ -45,8 +46,8 @@ echo ""
 echo "👀 To watch, run in another terminal:"
 echo "   ffplay -fflags nobuffer -flags low_delay -framedrop udp://${MULTICAST_ADDR}:${MULTICAST_PORT}"
 echo ""
-echo "Press Enter to start..."
-read
+echo "Starting in 3 seconds..."
+sleep 3
 
 # Remove old files
 rm -f "${LOG_FILE}"
@@ -79,7 +80,7 @@ echo "🎬 Starting Source 0 (Primary, BLUE) - pushing to receiver..."
     -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
     -c:a aac -b:a 128k \
     -f mpegts "srt://127.0.0.1:${RECEIVER0_PORT}?mode=caller&pkt_size=1316&latency=2000" \
-    >/dev/null 2>&1 &
+    > source0.log 2>&1 &
 SOURCE0_PID=$!
 echo "   PID: ${SOURCE0_PID}"
 
@@ -95,7 +96,7 @@ echo "🎬 Starting Source 1 (Backup, GREEN) - pushing to receiver..."
     -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
     -c:a aac -b:a 128k \
     -f mpegts "srt://127.0.0.1:${RECEIVER1_PORT}?mode=caller&pkt_size=1316&latency=2000" \
-    >/dev/null 2>&1 &
+    > source1.log 2>&1 &
 SOURCE1_PID=$!
 echo "   PID: ${SOURCE1_PID}"
 
@@ -198,8 +199,10 @@ echo "  • Did GREEN source stay stable without disconnecting?"
 echo ""
 echo "Logs saved to: ${LOG_FILE}"
 echo ""
-echo "Press Enter to stop (or Ctrl+C)..."
-read
+echo "Test will continue running. Press Ctrl+C to stop..."
+echo "(Cleanup will happen automatically)"
+echo ""
 
-# Cleanup will happen automatically via trap
+# Wait indefinitely for user to Ctrl+C
+wait
 
