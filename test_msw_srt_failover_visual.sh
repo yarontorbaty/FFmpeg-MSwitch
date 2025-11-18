@@ -92,8 +92,8 @@ echo "🎬 Starting Source 0 (Primary, BLUE) - pushing to receiver..."
 ./ffmpeg -hide_banner -loglevel info \
     -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30,format=yuv420p" \
     -f lavfi -i "sine=frequency=440:duration=120" \
-    -vf "drawtext=text='SOURCE 0 (PRIMARY)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=blue@0.9:boxborderw=10,\
-         drawtext=text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
+    -vf "drawtext=fontfile=/System/Library/Fonts/Helvetica.ttc:text='SOURCE 0 (PRIMARY)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=blue@0.9:boxborderw=10,\
+         drawtext=fontfile=/System/Library/Fonts/Helvetica.ttc:text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
     -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
     -c:a aac -b:a 128k \
     -f mpegts "srt://127.0.0.1:${RECEIVER0_PORT}?mode=caller&pkt_size=1316&latency=2000" \
@@ -108,8 +108,8 @@ echo "🎬 Starting Source 1 (Backup, GREEN) - pushing to receiver..."
 ./ffmpeg -hide_banner -loglevel info \
     -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30,format=yuv420p" \
     -f lavfi -i "sine=frequency=880:duration=120" \
-    -vf "drawtext=text='SOURCE 1 (BACKUP)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=green@0.9:boxborderw=10,\
-         drawtext=text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
+    -vf "drawtext=fontfile=/System/Library/Fonts/Helvetica.ttc:text='SOURCE 1 (BACKUP)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=green@0.9:boxborderw=10,\
+         drawtext=fontfile=/System/Library/Fonts/Helvetica.ttc:text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
     -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
     -c:a aac -b:a 128k \
     -f mpegts "srt://127.0.0.1:${RECEIVER1_PORT}?mode=caller&pkt_size=1316&latency=2000" \
