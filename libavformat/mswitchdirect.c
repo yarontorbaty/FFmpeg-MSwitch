@@ -321,9 +321,22 @@ static int packet_buffer_get(PacketBuffer *buf, AVPacket *pkt)
 {
     ff_mutex_lock(&buf->mutex);
     
-    // Wait if buffer is empty
+    // Wait if buffer is empty, but with timeout to allow health checks
+    // Timeout after 50ms to allow read_packet to check source health quickly
     while (buf->count == 0 && !buf->eof) {
-        ff_cond_wait(&buf->cond, &buf->mutex);
+        // Calculate timeout (50ms from now)
+        struct timespec ts;
+        av_gettime_relative();  // Ensure monotonic time is initialized
+        int64_t timeout_us = av_gettime_relative() + 50000; // 50ms in microseconds
+        ts.tv_sec = timeout_us / 1000000;
+        ts.tv_nsec = (timeout_us % 1000000) * 1000;
+        
+        int ret = ff_cond_timedwait(&buf->cond, &buf->mutex, &ts);
+        if (ret != 0) {
+            // Timeout or error - return EAGAIN to let read_packet check health and retry
+            ff_mutex_unlock(&buf->mutex);
+            return AVERROR(EAGAIN);
+        }
     }
     
     if (buf->count == 0 && buf->eof) {
@@ -1361,7 +1374,15 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 // This preserves timestamp continuity and allows freeze-frame to work
                 int old_source = ctx->active_source_index;
                 ctx->active_source_index = best_source;
-                ctx->last_manual_switch_time = av_gettime() / 1000;  // Record switch time for grace period
+                
+                // Update last_packet_time for the newly active source to current time
+                // This prevents the health monitor from seeing stale timestamps
+                int64_t current_time = av_gettime() / 1000;
+                ctx->sources[best_source].last_packet_time = current_time;
+                
+                // DO NOT set last_manual_switch_time for auto-failover
+                // The grace period is only for manual switches via HTTP/keyboard
+                // Auto-failover should be immediate since the target is already healthy
                 
                 // DO NOT reset timestamps for auto-failover - keep continuity
                 // The timestamp normalization code will adjust the offset automatically
@@ -1385,6 +1406,12 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         // Source is healthy, read from buffer normally
         ret = packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
         if (ret < 0) {
+            // Handle timeout from packet_buffer_get - just return EAGAIN to retry
+            // This allows health checks to run periodically even when buffer is empty
+            if (ret == AVERROR(EAGAIN)) {
+                return AVERROR(EAGAIN);
+            }
+            
             // If auto-failover is enabled, trigger immediate failover
             // But give manual switches a 3-second grace period to buffer
             if (ret == AVERROR_EOF && ctx->auto_failover_enabled) {
@@ -1679,7 +1706,7 @@ static const AVOption mswitchdirect_options[] = {
     { "msw_port", "Control port for HTTP switching", OFFSET(control_port), AV_OPT_TYPE_INT, {.i64 = MSW_CONTROL_PORT_DEFAULT}, 1024, 65535, DEC },
     { "msw_auto_failover", "Enable automatic failover on source failure", OFFSET(auto_failover_enabled), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, DEC },
     { "msw_health_interval", "Health check interval in milliseconds", OFFSET(health_check_interval_ms), AV_OPT_TYPE_INT, {.i64 = 50}, 10, 10000, DEC },
-    { "msw_source_timeout", "Source timeout in milliseconds before marked unhealthy", OFFSET(source_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 300}, 10, 60000, DEC },
+    { "msw_source_timeout", "Source timeout in milliseconds before marked unhealthy", OFFSET(source_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 1000}, 10, 60000, DEC },
     { "msw_grace_period", "Startup grace period in milliseconds before health checks begin", OFFSET(startup_grace_period_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 60000, DEC },
     { "msw_reconnect_timeout", "Reconnection timeout in milliseconds (0 = infinite, keep trying forever)", OFFSET(reconnect_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 300000, DEC },
     { "msw_clean_switch", "Enable clean switching with decoder flush and SPS/PPS injection (slower but smoother)", OFFSET(clean_switch_enabled), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC },
