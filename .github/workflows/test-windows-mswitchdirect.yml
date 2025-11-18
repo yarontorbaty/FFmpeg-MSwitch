@@ -1,0 +1,206 @@
+name: Test Windows mswitchdirect
+
+on:
+  push:
+    branches:
+      - fix/windows-mswitchdirect-threading
+      - master
+  pull_request:
+    branches:
+      - master
+      - fix/windows-mswitchdirect-threading
+
+jobs:
+  test-mswitchdirect:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-x264
+            mingw-w64-x86_64-x265
+            mingw-w64-x86_64-aom
+            mingw-w64-x86_64-srt
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-SDL2
+      
+      - name: Configure
+        run: |
+          ./configure \
+            --prefix="${PWD}/build" \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-nonfree \
+            --enable-libx264 \
+            --enable-libx265 \
+            --enable-libaom \
+            --enable-libsrt \
+            --enable-libfreetype \
+            --enable-libfontconfig \
+            --enable-libharfbuzz \
+            --enable-sdl2 \
+            --disable-stripping \
+            --disable-debug \
+            --extra-cflags="-O3" \
+            --pkg-config-flags=--static
+      
+      - name: Verify mswitchdirect in config
+        shell: msys2 {0}
+        run: |
+          echo "Checking if mswitchdirect is enabled in config..."
+          if grep -q "CONFIG_MSWITCHDIRECT_DEMUXER=yes" ffbuild/config.mak; then
+            echo "✅ CONFIG_MSWITCHDIRECT_DEMUXER=yes found in config.mak"
+          else
+            echo "❌ CONFIG_MSWITCHDIRECT_DEMUXER not found or not enabled"
+            echo "Config contents:"
+            grep -i mswitchdirect ffbuild/config.mak || echo "No mswitchdirect found"
+            exit 1
+          fi
+          
+          echo "Checking demuxer_list.c..."
+          if grep -q "ff_mswitchdirect_demuxer" libavformat/demuxer_list.c; then
+            echo "✅ ff_mswitchdirect_demuxer found in demuxer_list.c"
+            echo "Showing context around mswitchdirect in demuxer_list.c:"
+            grep -B 2 -A 2 "ff_mswitchdirect_demuxer" libavformat/demuxer_list.c
+          else
+            echo "❌ ff_mswitchdirect_demuxer NOT found in demuxer_list.c"
+            echo "First 50 lines of demuxer_list.c:"
+            head -50 libavformat/demuxer_list.c
+            echo "..."
+            echo "Last 20 lines of demuxer_list.c:"
+            tail -20 libavformat/demuxer_list.c
+            exit 1
+          fi
+          
+          echo "Checking if allformats.c includes demuxer_list.c..."
+          if grep -q '#include "libavformat/demuxer_list.c"' libavformat/allformats.c; then
+            echo "✅ allformats.c includes demuxer_list.c"
+          else
+            echo "❌ allformats.c does NOT include demuxer_list.c"
+            exit 1
+          fi
+      
+      - name: Build
+        run: make -j$(nproc)
+      
+      - name: Verify symbol in library
+        shell: msys2 {0}
+        run: |
+          echo "Checking if ff_mswitchdirect_demuxer symbol exists in libavformat.a..."
+          if nm libavformat/libavformat.a 2>/dev/null | grep -q "ff_mswitchdirect_demuxer"; then
+            echo "✅ ff_mswitchdirect_demuxer symbol found in libavformat.a"
+            nm libavformat/libavformat.a | grep "ff_mswitchdirect_demuxer"
+          else
+            echo "❌ ff_mswitchdirect_demuxer symbol NOT found in libavformat.a"
+            echo "Checking if mswitchdirect.o is in the archive:"
+            ar -t libavformat/libavformat.a | grep mswitchdirect || echo "mswitchdirect.o not found in archive"
+            exit 1
+          fi
+          
+          echo "Checking if symbol exists in final ffmpeg binary..."
+          if nm build/bin/ffmpeg.exe 2>/dev/null | grep -q "ff_mswitchdirect_demuxer"; then
+            echo "✅ ff_mswitchdirect_demuxer symbol found in ffmpeg.exe"
+          else
+            echo "⚠️  ff_mswitchdirect_demuxer symbol NOT found in ffmpeg.exe (might be stripped or unused)"
+          fi
+      
+      - name: Install
+        run: make install
+      
+      - name: Test mswitchdirect appears in formats
+        shell: msys2 {0}
+        run: |
+          echo "Testing that mswitchdirect demuxer is available..."
+          
+          # Check if ffmpeg exists
+          if [ -f "build/bin/ffmpeg.exe" ]; then
+            echo "✅ ffmpeg.exe exists"
+            ls -lh build/bin/ffmpeg.exe
+          else
+            echo "❌ ffmpeg.exe not found"
+            exit 1
+          fi
+          
+          # Try to run ffmpeg and capture both stdout and stderr
+          echo ""
+          echo "Testing ffmpeg execution..."
+          if ! ./build/bin/ffmpeg.exe -version 2>&1 | head -5; then
+            echo "❌ ffmpeg.exe failed to execute"
+            echo "Checking for missing DLLs..."
+            ldd build/bin/ffmpeg.exe | grep "not found" || echo "All DLLs found"
+            exit 1
+          fi
+          
+          # Get ffmpeg formats output
+          echo ""
+          echo "Getting formats list..."
+          formats_output=$(./build/bin/ffmpeg.exe -formats 2>&1)
+          
+          # Check if mswitchdirect is in the output
+          if echo "$formats_output" | grep -q "mswitchdirect"; then
+            echo "✅ SUCCESS: mswitchdirect demuxer found in formats list"
+            echo ""
+            echo "Formats output (filtered for mswitchdirect):"
+            echo "$formats_output" | grep "mswitchdirect"
+          else
+            echo "❌ FAILURE: mswitchdirect demuxer NOT found in formats list"
+            echo ""
+            echo "Checking for any demuxer entries:"
+            echo "$formats_output" | grep " D " | head -10 || echo "No demuxers found in output"
+            echo ""
+            echo "Searching for 'switch' in output:"
+            echo "$formats_output" | grep -i "switch" || echo "No 'switch' entries found"
+            exit 1
+          fi
+      
+      - name: Test mswitchdirect can be used
+        shell: pwsh
+        run: |
+          Write-Host "Testing that mswitchdirect can be used as input format..."
+          
+          # Try to use mswitchdirect (should fail gracefully with usage error, not "unknown format")
+          $output = & build/bin/ffmpeg.exe -i "mswitchdirect://test" -f null - 2>&1
+          
+          # Check if error is about format not found vs usage/parameter error
+          if ($output -match "Invalid data found|No such file|Protocol not found|Unknown input format") {
+            Write-Host "❌ FAILURE: mswitchdirect format not recognized"
+            Write-Host "Error output:"
+            Write-Host $output
+            exit 1
+          } else {
+            Write-Host "✅ SUCCESS: mswitchdirect format is recognized (got expected usage/parameter error)"
+            Write-Host "This means the demuxer is properly registered."
+            exit 0
+          }
+      
+      - name: Verify version info
+        shell: msys2 {0}
+        run: |
+          echo "FFmpeg version information:"
+          ./build/bin/ffmpeg.exe -version
+      
+      - name: Upload Windows build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows-mswitchdirect
+          path: |
+            build/bin/ffmpeg.exe
+            build/bin/ffplay.exe
+            build/bin/ffprobe.exe
+          retention-days: 7
+

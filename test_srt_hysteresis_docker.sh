@@ -54,16 +54,16 @@ docker run -d --name $CONTAINER_NAME \
     # Start FFmpeg in background
     ffmpeg -loglevel info \
       -re -stream_loop -1 -i /input.mp4 \
-      -c:v libx265 \
+      -c:v libx264 \
       -preset ultrafast \
       -tune zerolatency \
       -x265-params 'pools=4:frame-threads=2:no-open-gop=1:rc-lookahead=20' \
-      -b:v 12000k \
+      -b:v 25000k \
       -g 60 \
       -srt_rate_control 1 \
       -enable_encoder_restart 1 \
       -srt_min_bitrate 2000000 \
-      -srt_max_bitrate 18000000 \
+      -srt_max_bitrate 25000000 \
       -srt_upshift_delay_ms ${UPSHIFT_DELAY_MS} \
       -http_control_enable 1 \
       -http_control_port ${HTTP_PORT} \
