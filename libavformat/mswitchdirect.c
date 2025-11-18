@@ -321,9 +321,22 @@ static int packet_buffer_get(PacketBuffer *buf, AVPacket *pkt)
 {
     ff_mutex_lock(&buf->mutex);
     
-    // Wait if buffer is empty
+    // Wait if buffer is empty, but with timeout to allow health checks
+    // Timeout after 100ms to allow read_packet to check source health
     while (buf->count == 0 && !buf->eof) {
-        ff_cond_wait(&buf->cond, &buf->mutex);
+        // Calculate timeout (100ms from now)
+        struct timespec ts;
+        av_gettime_relative();  // Ensure monotonic time is initialized
+        int64_t timeout_us = av_gettime_relative() + 100000; // 100ms in microseconds
+        ts.tv_sec = timeout_us / 1000000;
+        ts.tv_nsec = (timeout_us % 1000000) * 1000;
+        
+        int ret = ff_cond_timedwait(&buf->cond, &buf->mutex, &ts);
+        if (ret != 0) {
+            // Timeout or error - return EAGAIN to let read_packet check health and retry
+            ff_mutex_unlock(&buf->mutex);
+            return AVERROR(EAGAIN);
+        }
     }
     
     if (buf->count == 0 && buf->eof) {
@@ -1393,6 +1406,12 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         // Source is healthy, read from buffer normally
         ret = packet_buffer_get(&ctx->sources[active_source].buffer, pkt);
         if (ret < 0) {
+            // Handle timeout from packet_buffer_get - just return EAGAIN to retry
+            // This allows health checks to run periodically even when buffer is empty
+            if (ret == AVERROR(EAGAIN)) {
+                return AVERROR(EAGAIN);
+            }
+            
             // If auto-failover is enabled, trigger immediate failover
             // But give manual switches a 3-second grace period to buffer
             if (ret == AVERROR_EOF && ctx->auto_failover_enabled) {
