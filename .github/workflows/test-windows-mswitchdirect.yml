@@ -56,6 +56,7 @@ jobs:
             --disable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
+            --extra-ldflags="-static" \
             --pkg-config-flags=--static
       
       - name: Verify mswitchdirect in config
@@ -192,6 +193,39 @@ jobs:
         run: |
           echo "FFmpeg version information:"
           ./build/bin/ffmpeg.exe -version
+      
+      - name: Test PowerShell output compatibility
+        shell: pwsh
+        run: |
+          Write-Host "Testing ffmpeg.exe output in PowerShell (Issue #4)..."
+          Write-Host ""
+          
+          # Test 1: Basic version output
+          $versionOutput = & "./build/bin/ffmpeg.exe" -version 2>&1 | Out-String
+          if ($versionOutput) {
+            Write-Host "✅ SUCCESS: ffmpeg.exe produces version output in PowerShell"
+            Write-Host "First line: $($versionOutput.Split([Environment]::NewLine)[0])"
+          } else {
+            Write-Host "❌ FAILURE: ffmpeg.exe produces no output in PowerShell"
+            exit 1
+          }
+          
+          Write-Host ""
+          
+          # Test 2: Formats list output
+          $formatsOutput = & "./build/bin/ffmpeg.exe" -formats 2>&1 | Out-String
+          if ($formatsOutput -match "mswitchdirect") {
+            Write-Host "✅ SUCCESS: ffmpeg.exe -formats works and shows mswitchdirect"
+          } elseif ($formatsOutput) {
+            Write-Host "⚠️  WARNING: ffmpeg.exe -formats produces output but mswitchdirect not found"
+            Write-Host "Output length: $($formatsOutput.Length) characters"
+          } else {
+            Write-Host "❌ FAILURE: ffmpeg.exe -formats produces no output"
+            exit 1
+          }
+          
+          Write-Host ""
+          Write-Host "PowerShell compatibility test passed!"
       
       - name: Upload Windows build artifact
         if: always()
