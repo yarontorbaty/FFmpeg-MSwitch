@@ -185,6 +185,14 @@ typedef struct MSwitchDirectContext {
     int health_running;
     int64_t last_health_check;
     
+    // Auto-revert to preferred source
+    int auto_revert_enabled;           // Enable auto-revert to higher-priority (lower index) sources
+    int revert_delay_ms;               // Delay before reverting to preferred source (default: 5000ms)
+    int revert_stability_time_ms;      // Source must be stable for this long before revert (default: 3000ms)
+    int64_t *source_healthy_since;     // Timestamp when each source became healthy (0 = unhealthy)
+    int64_t last_revert_time;          // Last revert time (for cooldown between reverts)
+    int revert_cooldown_ms;            // Minimum time between reverts to prevent thrashing (default: 10000ms)
+    
     // Reconnection control
     int reconnect_timeout_ms;      // Timeout for reconnection attempts (0 = infinite, keep trying forever)
     
@@ -721,6 +729,7 @@ static void *health_monitor_thread(void *arg)
                 // Update health status and log changes
                 if (!is_source_healthy && src->is_healthy) {
                     src->is_healthy = 0;
+                    ctx->source_healthy_since[i] = 0;  // Reset recovery time
                     if (src->packets_read == 0) {
                         av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (ACTIVE) unhealthy (never received packets)\n", i);
                     } else {
@@ -730,7 +739,11 @@ static void *health_monitor_thread(void *arg)
                     }
                 } else if (is_source_healthy && !src->is_healthy) {
                     src->is_healthy = 1;
+                    ctx->source_healthy_since[i] = current_time;  // Record recovery time
                     av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Source %d (ACTIVE) recovered\n", i);
+                } else if (is_source_healthy && ctx->source_healthy_since[i] == 0) {
+                    // Source is healthy but recovery time not set yet (initial state)
+                    ctx->source_healthy_since[i] = current_time;
                 }
             } else {
                 // Inactive source: check both buffer and recent packet activity
@@ -747,34 +760,72 @@ static void *health_monitor_thread(void *arg)
                 // Update health status and log changes
                 if (!is_source_healthy && src->is_healthy) {
                     src->is_healthy = 0;
+                    ctx->source_healthy_since[i] = 0;  // Reset recovery time
                     av_log(NULL, AV_LOG_WARNING, "[MSwitch Direct Health] Source %d (inactive) unhealthy (buffer empty, no recent packets)\n", i);
                 } else if (is_source_healthy && !src->is_healthy) {
                     src->is_healthy = 1;
+                    ctx->source_healthy_since[i] = current_time;  // Record recovery time
                     av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Source %d (inactive) recovered (buffer=%d, last_packet=%lldms ago)\n", 
                            i, buffer_count, time_since_packet);
+                } else if (is_source_healthy && ctx->source_healthy_since[i] == 0) {
+                    // Source is healthy but recovery time not set yet (initial state)
+                    ctx->source_healthy_since[i] = current_time;
                 }
             }
         }
         
         // Check if active source is unhealthy (we already have 'active' from above)
         if (!ctx->sources[active].is_healthy) {
-            // Determine failover target based on two-stage strategy:
-            // Find best healthy source (simple failover - freeze-frame handles the rest)
+            // Find best healthy source using priority-based selection
+            // Lower index = higher priority (source 0 is preferred)
             best_source = -1;
             for (i = 0; i < ctx->num_sources; i++) {
-                if (i != active && ctx->sources[i].is_healthy) {
-                    best_source = i;
-                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Found healthy source %d for failover\n", i);
-                    break;
+                if (ctx->sources[i].is_healthy) {
+                    if (best_source < 0 || i < best_source) {
+                        best_source = i;
+                    }
                 }
             }
             
-            if (best_source >= 0) {
-                // Just log that a healthy source is available
-                // The actual switch will happen in read_packet when it detects unhealthy source
+            if (best_source >= 0 && best_source != active) {
+                // Found a different healthy source for failover
                 av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Healthy source %d available for auto-failover\n", best_source);
-            } else {
+            } else if (best_source < 0) {
                 av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] No healthy sources available for failover\n");
+            }
+        } else if (ctx->auto_revert_enabled) {
+            // Active source is healthy - check if we should revert to a higher-priority source
+            // Find the highest-priority (lowest index) healthy source
+            best_source = -1;
+            for (i = 0; i < ctx->num_sources; i++) {
+                if (ctx->sources[i].is_healthy) {
+                    if (best_source < 0 || i < best_source) {
+                        best_source = i;
+                    }
+                }
+            }
+            
+            // Check if there's a higher-priority source available
+            if (best_source >= 0 && best_source < active) {
+                // Higher priority source is available - check revert conditions
+                int64_t time_since_healthy = current_time - ctx->source_healthy_since[best_source];
+                int64_t time_since_last_revert = current_time - ctx->last_revert_time;
+                
+                // Check all revert conditions
+                if (time_since_healthy >= ctx->revert_stability_time_ms + ctx->revert_delay_ms) {
+                    if (time_since_last_revert >= ctx->revert_cooldown_ms || ctx->last_revert_time == 0) {
+                        av_log(NULL, AV_LOG_INFO, "[MSwitch Direct Health] Source %d (priority %d) ready for auto-revert (healthy for %lldms)\n",
+                               best_source, best_source, time_since_healthy);
+                    } else {
+                        int64_t cooldown_remaining = ctx->revert_cooldown_ms - time_since_last_revert;
+                        av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Auto-revert blocked: cooldown period (%lldms remaining)\n",
+                               cooldown_remaining);
+                    }
+                } else {
+                    int64_t time_remaining = (ctx->revert_stability_time_ms + ctx->revert_delay_ms) - time_since_healthy;
+                    av_log(NULL, AV_LOG_DEBUG, "[MSwitch Direct Health] Source %d not stable enough for revert (%lldms remaining)\n",
+                           best_source, time_remaining);
+                }
             }
         }
     }
@@ -1080,6 +1131,19 @@ static int mswitchdirect_read_header(AVFormatContext *s)
     ctx->need_sps_pps_injection = 0;
     ctx->pending_first_packet = NULL;
     
+    // Initialize auto-revert fields
+    ctx->revert_cooldown_ms = 10000;  // 10 seconds minimum between reverts
+    ctx->last_revert_time = 0;
+    ctx->source_healthy_since = av_mallocz(ctx->num_sources * sizeof(int64_t));
+    if (!ctx->source_healthy_since) {
+        av_log(s, AV_LOG_ERROR, "[MSwitch Direct] Failed to allocate source_healthy_since array\n");
+        return AVERROR(ENOMEM);
+    }
+    // All sources start as unhealthy (0) until proven healthy
+    for (int i = 0; i < ctx->num_sources; i++) {
+        ctx->source_healthy_since[i] = 0;
+    }
+    
     // Start health monitoring thread if auto-failover enabled
     if (ctx->auto_failover_enabled) {
         ctx->health_running = 1;
@@ -1088,6 +1152,10 @@ static int mswitchdirect_read_header(AVFormatContext *s)
         pthread_create(&ctx->health_thread, NULL, health_monitor_thread, ctx);
         av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Auto-failover enabled (timeout: %dms, check interval: %dms, grace period: %dms)\n",
                ctx->source_timeout_ms, ctx->health_check_interval_ms, ctx->startup_grace_period_ms);
+        if (ctx->auto_revert_enabled) {
+            av_log(s, AV_LOG_INFO, "[MSwitch Direct] Auto-revert enabled (delay: %dms, stability: %dms, cooldown: %dms)\n",
+                   ctx->revert_delay_ms, ctx->revert_stability_time_ms, ctx->revert_cooldown_ms);
+        }
     } else {
         ctx->health_running = 0;
         av_log(s, AV_LOG_DEBUG, "[MSwitch Direct] Auto-failover disabled\n");
@@ -1356,20 +1424,21 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
         
         if (is_unhealthy && ctx->auto_failover_enabled) {
             // Active source is unhealthy - find a healthy source and switch immediately
-            // Use the same simple switch mechanism as manual CLI switches (which work perfectly)
             av_log(s, AV_LOG_WARNING, "[MSwitch Direct] 🚨 Active source %d is UNHEALTHY - triggering immediate failover\n", active_source);
             
-            // Find best healthy source
+            // Find best healthy source using priority-based selection
+            // Lower index = higher priority (source 0 is preferred)
             int best_source = -1;
             ff_mutex_lock(&ctx->state_mutex);
             for (int i = 0; i < ctx->num_sources; i++) {
-                if (i != active_source && ctx->sources[i].is_healthy) {
-                    best_source = i;
-                    break;
+                if (ctx->sources[i].is_healthy) {
+                    if (best_source < 0 || i < best_source) {
+                        best_source = i;
+                    }
                 }
             }
             
-            if (best_source >= 0) {
+            if (best_source >= 0 && best_source != active_source) {
                 // Perform immediate switch for auto-failover (no flush, no timestamp reset)
                 // This preserves timestamp continuity and allows freeze-frame to work
                 int old_source = ctx->active_source_index;
@@ -1389,7 +1458,7 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 
                 ff_mutex_unlock(&ctx->state_mutex);
                 
-                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⚡ AUTO-FAILOVER: Switched from source %d to %d (immediate, preserving timestamps)\n",
+                av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⚡ AUTO-FAILOVER: Switched from source %d to %d (priority-based, preserving timestamps)\n",
                        old_source, best_source);
                 
                 // Return EAGAIN to retry read_packet with new active source
@@ -1397,9 +1466,62 @@ static int mswitchdirect_read_packet(AVFormatContext *s, AVPacket *pkt)
                 return AVERROR(EAGAIN);
             } else {
                 ff_mutex_unlock(&ctx->state_mutex);
-                av_log(s, AV_LOG_ERROR, "[MSwitch Direct] No healthy sources available!\n");
+                if (best_source == active_source) {
+                    av_log(s, AV_LOG_ERROR, "[MSwitch Direct] Active source marked unhealthy but no other sources available!\n");
+                } else {
+                    av_log(s, AV_LOG_ERROR, "[MSwitch Direct] No healthy sources available!\n");
+                }
                 av_usleep(100000);
                 return AVERROR(EAGAIN);
+            }
+        } else if (!is_unhealthy && ctx->auto_revert_enabled) {
+            // Active source is healthy - check if we should auto-revert to a higher-priority source
+            int64_t current_time = av_gettime() / 1000;
+            
+            // Find the highest-priority (lowest index) healthy source
+            int best_source = -1;
+            ff_mutex_lock(&ctx->state_mutex);
+            for (int i = 0; i < ctx->num_sources; i++) {
+                if (ctx->sources[i].is_healthy) {
+                    if (best_source < 0 || i < best_source) {
+                        best_source = i;
+                    }
+                }
+            }
+            
+            // Check if there's a higher-priority source available for revert
+            if (best_source >= 0 && best_source < active_source) {
+                int64_t time_since_healthy = current_time - ctx->source_healthy_since[best_source];
+                int64_t time_since_last_revert = current_time - ctx->last_revert_time;
+                
+                // Check all revert conditions
+                int should_revert = (time_since_healthy >= ctx->revert_stability_time_ms + ctx->revert_delay_ms) &&
+                                   (time_since_last_revert >= ctx->revert_cooldown_ms || ctx->last_revert_time == 0);
+                
+                if (should_revert) {
+                    // Perform auto-revert
+                    int old_source = ctx->active_source_index;
+                    ctx->active_source_index = best_source;
+                    ctx->last_revert_time = current_time;
+                    
+                    // Update last_packet_time for the newly active source
+                    ctx->sources[best_source].last_packet_time = current_time;
+                    
+                    // DO NOT set last_manual_switch_time for auto-revert
+                    
+                    ff_mutex_unlock(&ctx->state_mutex);
+                    
+                    av_log(s, AV_LOG_WARNING, "[MSwitch Direct] ⏪ AUTO-REVERT: Switched from source %d to source %d (preferred source, healthy for %lldms)\n",
+                           old_source, best_source, time_since_healthy);
+                    
+                    // Return EAGAIN to retry read_packet with new active source
+                    av_usleep(10000);  // Brief sleep to let new source buffer fill
+                    return AVERROR(EAGAIN);
+                } else {
+                    ff_mutex_unlock(&ctx->state_mutex);
+                }
+            } else {
+                ff_mutex_unlock(&ctx->state_mutex);
             }
         }
         
@@ -1658,6 +1780,11 @@ static int mswitchdirect_read_close(AVFormatContext *s)
         close(ctx->control_socket);
     }
     
+    // Free auto-revert tracking array
+    if (ctx->source_healthy_since) {
+        av_freep(&ctx->source_healthy_since);
+    }
+    
     // Stop reader threads and clean up sources
     for (i = 0; i < ctx->num_sources; i++) {
         MSwitchSource *source = &ctx->sources[i];
@@ -1710,6 +1837,9 @@ static const AVOption mswitchdirect_options[] = {
     { "msw_grace_period", "Startup grace period in milliseconds before health checks begin", OFFSET(startup_grace_period_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 60000, DEC },
     { "msw_reconnect_timeout", "Reconnection timeout in milliseconds (0 = infinite, keep trying forever)", OFFSET(reconnect_timeout_ms), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 300000, DEC },
     { "msw_clean_switch", "Enable clean switching with decoder flush and SPS/PPS injection (slower but smoother)", OFFSET(clean_switch_enabled), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC },
+    { "msw_auto_revert", "Enable auto-revert to higher-priority (lower index) source when it becomes healthy", OFFSET(auto_revert_enabled), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC },
+    { "msw_revert_delay", "Delay in milliseconds before reverting to preferred source", OFFSET(revert_delay_ms), AV_OPT_TYPE_INT, {.i64 = 5000}, 1000, 60000, DEC },
+    { "msw_revert_stability_time", "Source must be stable (healthy) for this long before revert (ms)", OFFSET(revert_stability_time_ms), AV_OPT_TYPE_INT, {.i64 = 3000}, 1000, 30000, DEC },
     { NULL }
 };
 
