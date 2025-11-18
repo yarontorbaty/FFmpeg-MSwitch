@@ -58,7 +58,7 @@ jobs:
             --disable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
-            --extra-ldflags="-static" \
+            --extra-ldflags="-static-libgcc -static-libstdc++" \
             --pkg-config-flags=--static
       
       - name: Verify mswitchdirect in config

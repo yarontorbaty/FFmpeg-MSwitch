@@ -306,7 +306,7 @@ jobs:
             --enable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
-            --extra-ldflags="-static" \
+            --extra-ldflags="-static-libgcc -static-libstdc++" \
             --pkg-config-flags=--static
       
       - name: Build
