@@ -58,7 +58,6 @@ jobs:
             --disable-stripping \
             --disable-debug \
             --extra-cflags="-O3" \
-            --extra-ldflags="-static-libgcc -static-libstdc++" \
             --pkg-config-flags=--static
       
       - name: Verify mswitchdirect in config
@@ -123,6 +122,19 @@ jobs:
       
       - name: Install
         run: make install
+      
+      - name: Copy runtime DLLs for PowerShell compatibility
+        shell: msys2 {0}
+        run: |
+          echo "Copying MSYS2 runtime DLLs to build/bin..."
+          # Copy essential MSYS2 runtime DLLs needed for PowerShell
+          cp /mingw64/bin/libgcc_s_seh-1.dll build/bin/
+          cp /mingw64/bin/libstdc++-6.dll build/bin/
+          cp /mingw64/bin/libwinpthread-1.dll build/bin/
+          
+          # List what we copied
+          echo "DLLs copied:"
+          ls -lh build/bin/*.dll
       
       - name: Test mswitchdirect appears in formats
         shell: msys2 {0}
@@ -238,5 +250,6 @@ jobs:
             build/bin/ffmpeg.exe
             build/bin/ffplay.exe
             build/bin/ffprobe.exe
+            build/bin/*.dll
           retention-days: 7
 
