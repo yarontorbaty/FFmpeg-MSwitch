@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - fix/windows-mswitchdirect-threading
+      - fix/windows-powershell-output
       - master
   pull_request:
     branches:
       - master
       - fix/windows-mswitchdirect-threading
+      - fix/windows-powershell-output
 
 jobs:
   test-mswitchdirect:
