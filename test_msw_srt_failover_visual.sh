@@ -30,14 +30,14 @@ trap cleanup EXIT
 # Test configuration
 MULTICAST_ADDR="239.1.1.1"
 MULTICAST_PORT="5000"
-SOURCE0_PORT=9000
-SOURCE1_PORT=9001
+RECEIVER0_PORT=9000
+RECEIVER1_PORT=9001
 HEALTH_TIMEOUT=5000  # 5 seconds
 LOG_FILE="test_msw_srt_failover_visual.log"
 
 echo "📝 Test configuration:"
-echo "  • Source 0: srt://127.0.0.1:${SOURCE0_PORT} (BLUE, will fail at 15s)"
-echo "  • Source 1: srt://127.0.0.1:${SOURCE1_PORT} (GREEN, backup)"
+echo "  • Receiver 0 listening on: srt://0.0.0.0:${RECEIVER0_PORT} (will receive from Source 0 - BLUE)"
+echo "  • Receiver 1 listening on: srt://0.0.0.0:${RECEIVER1_PORT} (will receive from Source 1 - GREEN)"
 echo "  • Output: udp://${MULTICAST_ADDR}:${MULTICAST_PORT}"
 echo "  • Health timeout: ${HEALTH_TIMEOUT}ms"
 echo "  • Logs: ${LOG_FILE}"
@@ -51,44 +51,12 @@ read
 # Remove old files
 rm -f "${LOG_FILE}"
 
-# Start Source 0 (will be primary, BLUE)
-echo "🎬 Starting Source 0 (Primary, BLUE)..."
-./ffmpeg -hide_banner -loglevel info \
-    -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30,format=yuv420p" \
-    -f lavfi -i "sine=frequency=440:duration=120" \
-    -vf "drawtext=text='SOURCE 0 (PRIMARY)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=blue@0.9:boxborderw=10,\
-         drawtext=text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
-    -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
-    -c:a aac -b:a 128k \
-    -f mpegts "srt://127.0.0.1:${SOURCE0_PORT}?mode=listener&pkt_size=1316&latency=2000" \
-    >/dev/null 2>&1 &
-SOURCE0_PID=$!
-echo "   PID: ${SOURCE0_PID}"
-
-sleep 5
-
-# Start Source 1 (backup, GREEN)
-echo "🎬 Starting Source 1 (Backup, GREEN)..."
-./ffmpeg -hide_banner -loglevel info \
-    -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30,format=yuv420p" \
-    -f lavfi -i "sine=frequency=880:duration=120" \
-    -vf "drawtext=text='SOURCE 1 (BACKUP)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=green@0.9:boxborderw=10,\
-         drawtext=text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
-    -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
-    -c:a aac -b:a 128k \
-    -f mpegts "srt://127.0.0.1:${SOURCE1_PORT}?mode=listener&pkt_size=1316&latency=2000" \
-    >/dev/null 2>&1 &
-SOURCE1_PID=$!
-echo "   PID: ${SOURCE1_PID}"
-
-sleep 5
-
-# Start receiver with mswitchdirect -> multicast UDP
-echo "📡 Starting MSwitch Direct receiver..."
+# Start receiver with mswitchdirect FIRST (as listeners)
+echo "📡 Starting MSwitch Direct receiver (will listen for SRT sources)..."
 echo "   (monitoring both sources, auto-failover enabled)"
 ./ffmpeg -hide_banner -loglevel info \
     -f mswitchdirect \
-    -msw_sources "srt://127.0.0.1:${SOURCE0_PORT}?mode=caller,srt://127.0.0.1:${SOURCE1_PORT}?mode=caller" \
+    -msw_sources "srt://0.0.0.0:${RECEIVER0_PORT}?mode=listener,srt://0.0.0.0:${RECEIVER1_PORT}?mode=listener" \
     -msw_source_timeout "${HEALTH_TIMEOUT}" \
     -msw_auto_failover 1 \
     -i dummy \
@@ -97,7 +65,39 @@ echo "   (monitoring both sources, auto-failover enabled)"
     > "${LOG_FILE}" 2>&1 &
 RECEIVER_PID=$!
 echo "   PID: ${RECEIVER_PID}"
-echo ""
+echo "   Waiting for SRT listeners to be ready..."
+
+sleep 3
+
+# Start Source 0 (will be primary, BLUE) - pushes to receiver
+echo "🎬 Starting Source 0 (Primary, BLUE) - pushing to receiver..."
+./ffmpeg -hide_banner -loglevel info \
+    -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30,format=yuv420p" \
+    -f lavfi -i "sine=frequency=440:duration=120" \
+    -vf "drawtext=text='SOURCE 0 (PRIMARY)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=blue@0.9:boxborderw=10,\
+         drawtext=text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
+    -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
+    -c:a aac -b:a 128k \
+    -f mpegts "srt://127.0.0.1:${RECEIVER0_PORT}?mode=caller&pkt_size=1316&latency=2000" \
+    >/dev/null 2>&1 &
+SOURCE0_PID=$!
+echo "   PID: ${SOURCE0_PID}"
+
+sleep 3
+
+# Start Source 1 (backup, GREEN) - pushes to receiver
+echo "🎬 Starting Source 1 (Backup, GREEN) - pushing to receiver..."
+./ffmpeg -hide_banner -loglevel info \
+    -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30,format=yuv420p" \
+    -f lavfi -i "sine=frequency=880:duration=120" \
+    -vf "drawtext=text='SOURCE 1 (BACKUP)':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=50:box=1:boxcolor=green@0.9:boxborderw=10,\
+         drawtext=text='Time\\: %{pts\\:hms}':fontsize=36:fontcolor=yellow:x=(w-text_w)/2:y=(h-100):box=1:boxcolor=black@0.7:boxborderw=5" \
+    -c:v libx264 -preset ultrafast -tune zerolatency -b:v 3M -g 30 \
+    -c:a aac -b:a 128k \
+    -f mpegts "srt://127.0.0.1:${RECEIVER1_PORT}?mode=caller&pkt_size=1316&latency=2000" \
+    >/dev/null 2>&1 &
+SOURCE1_PID=$!
+echo "   PID: ${SOURCE1_PID}"
 
 # Give instructions
 echo "═══════════════════════════════════════════════════"
