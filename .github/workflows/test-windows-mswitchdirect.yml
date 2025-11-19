@@ -5,12 +5,14 @@ on:
     branches:
       - fix/windows-mswitchdirect-threading
       - fix/windows-powershell-output
+      - feature/auto-revert-preferred-source
       - master
   pull_request:
     branches:
       - master
       - fix/windows-mswitchdirect-threading
       - fix/windows-powershell-output
+      - feature/auto-revert-preferred-source
 
 jobs:
   test-mswitchdirect:
