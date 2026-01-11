@@ -266,6 +266,9 @@ typedef struct MpegTSWriteStream {
     int opus_pending_trim_start;
 
     DVBAC3Descriptor *dvb_ac3_desc;
+
+    /* For SCTE-35 section data */
+    MpegTSSection scte35_section;
 } MpegTSWriteStream;
 
 static void mpegts_write_pat(AVFormatContext *s)
@@ -442,6 +445,9 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
         } else {
             stream_type = STREAM_TYPE_PRIVATE_DATA;
         }
+        break;
+    case AV_CODEC_ID_SCTE_35:
+        stream_type = STREAM_TYPE_SCTE_DATA_SCTE_35;
         break;
     default:
         av_log_once(s, AV_LOG_WARNING, AV_LOG_DEBUG, &ts_st->data_st_warning,
@@ -817,6 +823,8 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
                 put_registration_descriptor(&q, MKTAG('K', 'L', 'V', 'A'));
             } else if (codec_id == AV_CODEC_ID_SMPTE_2038) {
                 put_registration_descriptor(&q, MKTAG('V', 'A', 'N', 'C'));
+            } else if (codec_id == AV_CODEC_ID_SCTE_35) {
+                put_registration_descriptor(&q, MKTAG('C', 'U', 'E', 'I'));
             } else if (codec_id == AV_CODEC_ID_TIMED_ID3) {
                 const char *tag = "ID3 ";
                 *q++ = METADATA_DESCRIPTOR;
@@ -1399,6 +1407,51 @@ static void mpegts_insert_pcr_only(AVFormatContext *s, AVStream *st)
     write_packet(s, buf);
 }
 
+/* Write SCTE-35 section data - SCTE-35 is transmitted as private_section, not PES */
+static void mpegts_write_scte35_section(AVFormatContext *s, AVStream *st,
+                                        const uint8_t *payload, int payload_size)
+{
+    MpegTSWriteStream *ts_st = st->priv_data;
+    uint8_t buf[TS_PACKET_SIZE];
+    uint8_t *q;
+    const uint8_t *p = payload;
+    int first = 1;
+    int left;
+
+    while (payload_size > 0) {
+        q = buf;
+        *q++ = SYNC_BYTE;
+        if (first)
+            *q++ = 0x40 | (ts_st->pid >> 8);  /* payload_unit_start_indicator set */
+        else
+            *q++ = ts_st->pid >> 8;
+        *q++ = ts_st->pid;
+        ts_st->cc = (ts_st->cc + 1) & 0xf;
+        *q++ = 0x10 | ts_st->cc;  /* payload only + CC */
+
+        if (first) {
+            *q++ = 0;  /* pointer_field = 0 for first packet */
+            first = 0;
+        }
+
+        left = TS_PACKET_SIZE - (q - buf);
+        if (left > payload_size)
+            left = payload_size;
+
+        memcpy(q, p, left);
+        q += left;
+        p += left;
+        payload_size -= left;
+
+        /* add stuffing bytes if needed */
+        left = TS_PACKET_SIZE - (q - buf);
+        if (left > 0)
+            memset(q, STUFFING_BYTE, left);
+
+        write_packet(s, buf);
+    }
+}
+
 static void write_pts(uint8_t *q, int fourbits, int64_t pts)
 {
     int val;
@@ -1898,6 +1951,12 @@ static int mpegts_write_packet_internal(AVFormatContext *s, AVPacket *pkt)
         return AVERROR_INVALIDDATA;
     }
     ts_st->first_timestamp_checked = 1;
+
+    /* SCTE-35 is written as section data, not PES */
+    if (st->codecpar->codec_id == AV_CODEC_ID_SCTE_35) {
+        mpegts_write_scte35_section(s, st, buf, size);
+        return 0;
+    }
 
     if (st->codecpar->codec_id == AV_CODEC_ID_H264) {
         const uint8_t *p = buf, *buf_end = p + size;
