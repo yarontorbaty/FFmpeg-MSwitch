@@ -98,7 +98,7 @@ jobs:
           path: releases/*.tar.gz*
 
   build-macos-intel:
-    runs-on: macos-13  # Intel runner
+    runs-on: macos-15-large  # Intel runner (macos-13 retired)
     steps:
       - uses: actions/checkout@v4
       
